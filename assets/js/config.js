@@ -4,8 +4,8 @@
 //   key  = chave "anon public" (ou "publishable"). NUNCA coloque aqui a "service_role"/"secret".
 // Com url vazio, o sistema abre em MODO DEMONSTRAÇÃO, com dados de exemplo salvos só no navegador.
 export const SUPABASE = {
-  url: "",
-  key: ""
+  url: "https://kywilkofisywtmysxbmo.supabase.co",
+  key: "sb_publishable_SZieJMpzsUucS4DALgkxqg_xbquJHBH"
 };
 
 // Quem trabalha na HM (aparece em responsável, horas e agenda)
