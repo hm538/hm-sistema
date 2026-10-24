@@ -14,6 +14,9 @@ export const PEOPLE = ["Neto", "Mariana"];
 // Serviços que a HM vende
 export const SERVICES = ["Marketing digital", "Sistemas sob medida", "CRM e automação", "Delivery", "Sites e cartões digitais", "Identidade visual", "Outro"];
 
+// Formas de pagamento
+export const METHODS = ["Pix", "Dinheiro", "Cartão de crédito", "Cartão de débito", "Boleto", "Transferência"];
+
 // Categorias do financeiro
 export const CATEGORIES = {
   entrada: ["Pagamento semanal", "Pagamento quinzenal", "Mensalidade", "Projeto", "Outro"],

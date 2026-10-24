@@ -12,7 +12,7 @@ Site estático (HTML + JavaScript, sem build) com dados e login no **Supabase**.
 | Clientes | Funil por etapa, busca, WhatsApp e Instagram; valor fixo e dia do pagamento (semanal, quinzenal ou mensal); semanas pagas no mês; botão **Recebi** |
 | Trabalhos | Status, prazo, responsável, horas estimadas x gastas (cronômetro ou à mão), recebido, gastos, lucro e valor por hora |
 | Financeiro | **Gerar cobranças do mês** para todos os clientes fixos; lançamentos com previsto x realizado; repetição semanal, quinzenal ou mensal; atrasados, últimos 6 meses e gastos por categoria |
-| Agenda | Visões de dia, semana e mês; compromissos lado a lado na linha do tempo, cor por pessoa, local com botão de mapa, aviso de conflito ou pouco tempo de deslocamento; prazos e vencimentos do financeiro |
+| Agenda | Visões de dia, semana e mês; compromissos lado a lado na linha do tempo, cor por pessoa, local com botão de mapa, aviso de conflito ou pouco tempo de deslocamento; prazos; **entradas e saídas** (pagas no dia do pagamento, com a forma de pagamento; pendentes no vencimento) e total do dia |
 
 ## Configurar o Supabase (uma vez)
 

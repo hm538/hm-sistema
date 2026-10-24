@@ -97,6 +97,10 @@ alter table projects add column if not exists completed_at date; -- quando foi c
 alter table clients add column if not exists fee numeric(12, 2);
 alter table clients add column if not exists billing text;
 alter table clients add column if not exists pay_day smallint;   -- 1 = segunda … 7 = domingo
+
+-- Como foi pago e anotação de cada lançamento
+alter table transactions add column if not exists method text;
+alter table transactions add column if not exists notes text;
 alter table projects drop constraint if exists projects_billing_check;
 alter table projects add constraint projects_billing_check check (billing in ('fechado', 'semanal', 'quinzenal', 'mensal'));
 

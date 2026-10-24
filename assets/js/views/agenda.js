@@ -7,6 +7,7 @@ import { eventForm, projectForm, txForm, KINDS, label } from "./common.js";
 let mode = null;      // "mes" | "semana" | "dia"
 let cursor = null;    // dia de referência (AAAA-MM-DD)
 let who = "todos";    // filtro de pessoa
+let showMoney = true; // mostrar entradas e saídas na agenda
 
 const HOUR_PX = 52;
 const GAP_MIN = 30;   // menos que isso entre locais diferentes gera aviso
@@ -44,9 +45,25 @@ export default function agenda(el, ctx) {
   db.projects.filter(p => p.due_date && p.status !== "concluido" && personOk(p.owner)).forEach(p => push(allDay, p.due_date, {
     type: "due", title: `Prazo: ${p.title}`, sub: [p.owner, ctx.clientLabel(p.client_id)].filter(Boolean).join(" · "), open: () => projectForm(ctx, p)
   }));
-  if (who === "todos") db.transactions.filter(t => !t.paid).forEach(t => push(allDay, t.due_date, {
-    type: t.type === "entrada" ? "in" : "out", title: `${t.type === "entrada" ? "Receber" : "Pagar"}: ${t.description}`, sub: money(t.amount), open: () => txForm(ctx, t)
-  }));
+  // Dinheiro: o que foi pago aparece no dia do pagamento; o que falta, no vencimento
+  const moneyDay = {};
+  if (showMoney) db.transactions.forEach(t => {
+    const d = t.paid ? (t.paid_date || t.due_date) : t.due_date;
+    const inc = t.type === "entrada";
+    push(moneyDay, d, {
+      t, paid: !!t.paid, inc, type: inc ? "in" : "out",
+      label: t.paid ? (inc ? "Entrou" : "Saiu") : (inc ? "A receber" : "A pagar"),
+      sub: [t.paid ? t.method : (d < today ? "atrasado" : "previsto"), t.category, ctx.clientLabel(t.client_id)].filter(Boolean).join(" · "),
+      open: () => txForm(ctx, t)
+    });
+  });
+  Object.values(moneyDay).forEach(a => a.sort((x, y) => (y.paid - x.paid) || (y.inc - x.inc)));
+  const totals = d => {
+    const l = moneyDay[d] || [];
+    const s = (inc, paid) => l.filter(x => x.inc === inc && x.paid === paid).reduce((a, x) => a + Number(x.t.amount), 0);
+    return { inP: s(true, true), outP: s(false, true), inD: s(true, false), outD: s(false, false) };
+  };
+  const moneyChip = (d, it, i) => `<button class="chip c-${it.type} ${it.paid ? "ok" : "due"}" data-money="${d}|${i}" title="${esc(`${it.label}: ${it.t.description} · ${money(it.t.amount)}`)}">${it.paid ? (it.inc ? "+" : "−") : ""}${esc(money(it.t.amount))} ${esc(it.t.description)}</button>`;
   Object.values(timed).forEach(a => a.sort((x, y) => x.start - y.start || x.end - y.end));
 
   // Lado a lado: distribui compromissos que se sobrepõem em colunas
@@ -107,9 +124,9 @@ export default function agenda(el, ctx) {
     const cols = `var(--gutter) ${days.map(d => `minmax(0, ${weight(d)}fr)`).join(" ")}`;
     return `
       <div class="tg ${wide ? "wide" : ""}" style="--cols:${days.length};--tpl:${cols}">
-        <div class="tg-head"><span></span>${days.map(d => `<button class="tg-day ${d === today ? "today" : ""}" data-goday="${d}">${esc(fmtDateLong(d))}</button>`).join("")}</div>
+        <div class="tg-head"><span></span>${days.map(d => { const tt = totals(d); return `<button class="tg-day ${d === today ? "today" : ""}" data-goday="${d}">${esc(fmtDateLong(d))}${showMoney && (tt.inP || tt.outP) ? `<small class="day-sum">${tt.inP ? `<b class="pos">+${esc(money(tt.inP))}</b>` : ""}${tt.outP ? `<b class="neg">−${esc(money(tt.outP))}</b>` : ""}</small>` : ""}</button>` }).join("")}</div>
         <div class="tg-all"><span>Dia todo</span>${days.map(d => `<div>${(allDay[d] || []).map((it, i) =>
-          `<button class="chip c-${it.type}" data-all="${d}|${i}" title="${esc(it.title)}">${esc(it.title)}</button>`).join("")}</div>`).join("")}</div>
+          `<button class="chip c-${it.type}" data-all="${d}|${i}" title="${esc(it.title)}">${esc(it.title)}</button>`).join("")}${(moneyDay[d] || []).map((it, i) => moneyChip(d, it, i)).join("")}</div>`).join("")}</div>
         <div class="tg-body" style="height:${hours.length * HOUR_PX}px">
           <div class="tg-hours">${hours.map(h => `<span style="top:${(h * 60 - r[0]) * HOUR_PX / 60}px">${String(h).padStart(2, "0")}:00</span>`).join("")}</div>
           ${days.map(d => `<div class="tg-col ${d === today ? "today" : ""}" data-col="${d}">
@@ -121,9 +138,23 @@ export default function agenda(el, ctx) {
       </div>`;
   };
   const dayList = d => {
-    const its = timed[d] || [], all = allDay[d] || [];
-    if (!its.length && !all.length) return `<p class="empty">Nada neste dia.</p>`;
-    return `<ul class="agenda-list">
+    const its = timed[d] || [], all = allDay[d] || [], ms = moneyDay[d] || [];
+    if (!its.length && !all.length && !ms.length) return `<p class="empty">Nada neste dia.</p>`;
+    const tt = totals(d);
+    const moneyHtml = ms.length ? `
+      <div class="money-day">
+        <div class="md-head">
+          <span>Entrou <b class="pos">${money(tt.inP)}</b></span><span>Saiu <b class="neg">${money(tt.outP)}</b></span>
+          ${tt.inD || tt.outD ? `<span class="muted-s">Previsto: ${tt.inD ? `+${money(tt.inD)}` : ""} ${tt.outD ? `−${money(tt.outD)}` : ""}</span>` : ""}
+        </div>
+        <ul class="agenda-list">${ms.map((it, i) => `
+          <li><button data-money="${d}|${i}" class="c-${it.type} ${it.paid ? "ok" : "pending"}">
+            <span class="when">${esc(it.label)}</span>
+            <span class="what"><b><span class="${it.inc ? "pos" : "neg"}">${it.inc ? "+" : "−"} ${esc(money(it.t.amount))}</span> · ${esc(it.t.description)}</b><small>${esc(it.sub)}</small>${it.t.notes ? `<small class="loc">${esc(it.t.notes)}</small>` : ""}</span>
+          </button></li>`).join("")}</ul>
+      </div>` : "";
+    if (!its.length && !all.length) return moneyHtml;
+    return moneyHtml + `<ul class="agenda-list">
       ${all.map((it, i) => `<li><button data-all="${d}|${i}" class="c-${it.type}"><span class="when">Dia todo</span><span class="what"><b>${esc(it.title)}</b><small>${esc(it.sub)}</small></span></button></li>`).join("")}
       ${its.map(it => `<li class="ev-row">
         <button data-ev="${it.e.id}" class="${PERSON_CLASS(it.person)}">
@@ -157,7 +188,8 @@ export default function agenda(el, ctx) {
         <section class="cal card">
           <div class="cal-head">${["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map(d => `<span>${d}</span>`).join("")}</div>
           <div class="cal-grid">${days.slice(0, weeks * 7).map(iso => {
-            const its = [...(timed[iso] || []).map(t => ({ type: "ev", title: `${hhmm(t.start)} ${t.title}`, cls: PERSON_CLASS(t.person) })), ...(allDay[iso] || [])];
+            const its = [...(timed[iso] || []).map(t => ({ type: "ev", title: `${hhmm(t.start)} ${t.title}`, cls: PERSON_CLASS(t.person) })), ...(allDay[iso] || []),
+              ...(moneyDay[iso] || []).map(m => ({ type: m.type, title: `${m.paid ? (m.inc ? "+" : "−") : ""}${money(m.t.amount)} ${m.t.description}`, cls: m.paid ? "ok" : "" }))];
             return `<button class="day ${parseISO(iso).getMonth() !== M ? "out" : ""} ${iso === today ? "today" : ""} ${iso === cursor ? "sel" : ""}" data-pick="${iso}" aria-label="${esc(fmtDateLong(iso))}, ${its.length} item(ns)">
               <span class="n">${parseISO(iso).getDate()}</span>
               <span class="chips">${its.slice(0, 3).map(it => `<i class="c-${it.type} ${it.cls || ""}"><em>${esc(it.title)}</em></i>`).join("")}${its.length > 3 ? `<i class="more"><em>+${its.length - 3}</em></i>` : ""}</span>
@@ -195,7 +227,7 @@ export default function agenda(el, ctx) {
   function legend() {
     return `<div class="legend">
       ${PEOPLE.map((p, i) => `<span><i class="ev-dot p-${i}"></i>${esc(p)}</span>`).join("")}<span><i class="ev-dot p-all"></i>Os dois</span>
-      <span><i class="c-due"></i>Prazo</span>${who === "todos" ? `<span><i class="c-in"></i>A receber</span><span><i class="c-out"></i>A pagar</span>` : ""}
+      <span><i class="c-due"></i>Prazo</span>${showMoney ? `<span><i class="c-in ok"></i>Entrou</span><span><i class="c-out ok"></i>Saiu</span><span><i class="c-in"></i>A receber</span><span><i class="c-out"></i>A pagar</span>` : ""}
     </div>`;
   }
 
@@ -220,6 +252,9 @@ export default function agenda(el, ctx) {
       <div class="seg" role="group" aria-label="Pessoa">
         ${["todos", ...PEOPLE].map(p => `<button data-who="${p}" aria-pressed="${who === p}">${p === "todos" ? "Todos" : esc(p)}</button>`).join("")}
       </div>
+      <div class="seg" role="group" aria-label="Financeiro na agenda">
+        <button data-money-toggle aria-pressed="${showMoney}">${icon("wallet", "i xs")} Financeiro</button>
+      </div>
     </div>
     ${body}`;
 
@@ -231,6 +266,8 @@ export default function agenda(el, ctx) {
   el.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { mode = b.dataset.mode; rerender() });
   el.querySelectorAll("[data-who]").forEach(b => b.onclick = () => { who = b.dataset.who; rerender() });
   el.querySelectorAll("[data-ev]").forEach(b => b.onclick = () => eventForm(ctx, findEv(b.dataset.ev)));
+  el.querySelector("[data-money-toggle]").onclick = () => { showMoney = !showMoney; rerender() };
+  el.querySelectorAll("[data-money]").forEach(b => b.onclick = () => { const [d, i] = b.dataset.money.split("|"); moneyDay[d][i].open() });
   el.querySelectorAll("[data-all]").forEach(b => b.onclick = () => { const [d, i] = b.dataset.all.split("|"); allDay[d][i].open() });
   el.querySelectorAll("[data-goday]").forEach(b => b.onclick = () => { cursor = b.dataset.goday; mode = "dia"; rerender() });
   el.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {

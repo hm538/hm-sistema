@@ -1,5 +1,5 @@
 // Rótulos e formulários compartilhados entre as telas.
-import { PEOPLE, SERVICES, CATEGORIES } from "../config.js";
+import { PEOPLE, SERVICES, CATEGORIES, METHODS } from "../config.js";
 import { formModal, confirmModal, todayISO, addMonths, addDays, toISO, toast, money } from "../ui.js";
 
 export const STAGES = [
@@ -70,9 +70,7 @@ export async function receivePayment(ctx, c) {
   const pending = ctx.db.transactions.filter(t => t.client_id === c.id && t.type === "entrada" && !t.paid && t.due_date <= limit)
     .sort((a, b) => a.due_date.localeCompare(b.due_date))[0];
   if (pending) {
-    const ok = await confirmModal(`Confirmar recebimento de ${money(pending.amount)} (${c.company || c.name}, cobrança de ${pending.due_date.split("-").reverse().slice(0, 2).join("/")})?`, "Recebi");
-    if (ok) return ctx.run(() => ctx.store.update("transactions", pending.id, { paid: true, paid_date: todayISO() }), "Pagamento registrado", ["transactions"]);
-    return;
+    return payModal(ctx, pending, `Recebi de ${c.company || c.name} · cobrança de ${pending.due_date.split("-").reverse().slice(0, 2).join("/")}`);
   }
   return txForm(ctx, {}, {
     type: "entrada", amount: c.fee, client_id: c.id, paid: true,
@@ -204,7 +202,9 @@ export async function txForm(ctx, t = {}, preset = {}) {
     { name: "client_id", label: "Cliente", type: "select", options: clientOpts(ctx), value: t.client_id ?? preset.client_id },
     { name: "project_id", label: "Trabalho", type: "select", options: projectOpts(ctx), value: t.project_id ?? preset.project_id },
     { name: "paid", label: type === "entrada" ? "Já recebido" : "Já pago", type: "checkbox", value: t.paid ?? preset.paid ?? false },
-    { name: "paid_date", label: "Data do pagamento", type: "date", value: t.paid_date || todayISO(), showIf: "paid=true" }
+    { name: "paid_date", label: "Data do pagamento", type: "date", value: t.paid_date || todayISO(), showIf: "paid=true" },
+    { name: "method", label: "Forma de pagamento", type: "select", options: [["", "—"], ...opts(METHODS)], value: t.method ?? preset.method ?? "Pix", showIf: "paid=true" },
+    { name: "notes", label: "Observação", type: "textarea", value: t.notes, full: true, placeholder: type === "saida" ? "Ex.: microfone para as gravações da C7" : "Ex.: pago adiantado, referente a duas semanas" }
   ];
   if (isNew) fields.push(
     { name: "repeat", label: "Repetir", type: "select", options: [["nao", "Não repete"], ["semanal", "Toda semana"], ["quinzenal", "A cada 15 dias"], ["mensal", "Todo mês"]], value: preset.repeat || "nao" },
@@ -230,7 +230,7 @@ export async function txForm(ctx, t = {}, preset = {}) {
     return ctx.run(() => ctx.store.remove("transactions", t.id), "Lançamento excluído", ["transactions"]);
   }
   const { repeat, times, ...row } = r;
-  if (!row.paid) row.paid_date = null;
+  if (!row.paid) { row.paid_date = null; row.method = null }
   if (isNew && repeat && repeat !== "nao" && times > 1) {
     const series = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     const rows = Array.from({ length: Math.min(times, 104) }, (_, i) => ({
@@ -242,10 +242,25 @@ export async function txForm(ctx, t = {}, preset = {}) {
   return ctx.run(() => t.id ? ctx.store.update("transactions", t.id, row) : ctx.store.insert("transactions", row), "Lançamento salvo", ["transactions"]);
 }
 
-export function togglePaid(ctx, t) {
-  const paid = !t.paid;
-  return ctx.run(() => ctx.store.update("transactions", t.id, { paid, paid_date: paid ? todayISO() : null }),
-    paid ? (t.type === "entrada" ? "Marcado como recebido" : "Marcado como pago") : "Marcado como pendente", ["transactions"]);
+export async function togglePaid(ctx, t) {
+  if (t.paid) return ctx.run(() => ctx.store.update("transactions", t.id, { paid: false, paid_date: null, method: null }), "Marcado como pendente", ["transactions"]);
+  return payModal(ctx, t);
+}
+
+// Pergunta quando e como foi pago, e marca o lançamento como pago
+export async function payModal(ctx, t, title) {
+  const r = await formModal({
+    title: title || `${t.type === "entrada" ? "Recebimento" : "Pagamento"}: ${t.description} (${money(t.amount)})`,
+    submit: t.type === "entrada" ? "Recebi" : "Paguei",
+    fields: [
+      { name: "paid_date", label: t.type === "entrada" ? "Recebido em" : "Pago em", type: "date", required: true, value: todayISO() },
+      { name: "method", label: "Forma de pagamento", type: "select", options: opts(METHODS), value: t.method || "Pix" },
+      { name: "amount", label: "Valor (R$)", type: "number", step: "0.01", required: true, value: t.amount, hint: "Altere se o valor pago foi diferente" },
+      { name: "notes", label: "Observação", value: t.notes, full: true }
+    ]
+  });
+  if (!r) return;
+  return ctx.run(() => ctx.store.update("transactions", t.id, { paid: true, ...r }), t.type === "entrada" ? "Recebimento registrado" : "Pagamento registrado", ["transactions"]);
 }
 
 // ---------- Compromisso ----------

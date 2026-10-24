@@ -38,7 +38,7 @@ export default function financeiro(el, ctx) {
     <li class="tx ${t.type} ${t.paid ? "paid" : ""} ${overdue ? "overdue" : ""}">
       <button class="tick" data-paid="${t.id}" aria-label="${t.paid ? "Marcar como pendente" : t.type === "entrada" ? "Marcar como recebido" : "Marcar como pago"}" aria-pressed="${t.paid}">${icon("check")}</button>
       <button class="tx-main" data-edit="${t.id}">
-        <span class="min0"><b>${esc(t.description)}</b><small>${esc([t.category, who].filter(Boolean).join(" · "))}${t.series_id ? ` · ${icon("repeat", "i xs")}recorrente` : ""}</small></span>
+        <span class="min0"><b>${esc(t.description)}</b><small>${esc([t.paid ? t.method : "", t.category, who].filter(Boolean).join(" · "))}${t.series_id ? ` · ${icon("repeat", "i xs")}recorrente` : ""}</small></span>
         <span class="tx-right"><b class="${t.type === "entrada" ? "pos" : "neg"}">${t.type === "entrada" ? "+" : "−"} ${money(t.amount)}</b>
         <small class="${overdue ? "bad" : ""}">${t.paid ? (t.type === "entrada" ? "Recebido " : "Pago ") + fmtDate(t.paid_date) : (overdue ? "Venceu " : "Vence ") + fmtDate(t.due_date)}</small></span>
       </button>
