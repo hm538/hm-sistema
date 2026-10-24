@@ -1,7 +1,7 @@
 // Trabalhos: status, prazo, horas estimadas x gastas (com cronômetro) e resultado financeiro de cada um.
 import { PEOPLE } from "../config.js";
 import { esc, icon, money, fmtDate, fmtHours, daysFrom, todayISO } from "../ui.js";
-import { projectForm, timeForm, txForm, STATUSES, label, projectMinutes, projectMoney, completion } from "./common.js";
+import { projectForm, timeForm, txForm, STATUSES, label, projectMinutes, projectMoney, completion, priceLabel, FREQ_CATEGORY } from "./common.js";
 
 let show = "abertos";
 let owner = "todos";
@@ -48,7 +48,7 @@ export default function trabalhos(el, ctx) {
       <div class="item-meta">
         <span>${icon("users")}${esc(p.owner || "—")}</span>
         <span class="${late ? "bad" : ""}">${icon("calendar")}${esc(dueTxt)}</span>
-        <span>${p.billing === "mensal" ? `${money(p.price)}/mês` : money(p.price)}</span>
+        ${p.price ? `<span>${esc(priceLabel(p.price, p.billing))}</span>` : ""}
       </div>
       <div class="hours">
         <div class="hours-top"><span>${icon("clock")}<b>${fmtHours(spent)}</b> ${est ? `de ${fmtHours(est)} estimadas` : "trabalhadas"}</span>${over ? `<span class="warn">+${fmtHours(spent - est)}</span>` : ""}</div>
@@ -99,7 +99,7 @@ export default function trabalhos(el, ctx) {
   el.querySelectorAll("[data-time]").forEach(b => b.onclick = () => timeForm(ctx, byId(b.dataset.time)));
   el.querySelectorAll("[data-tx]").forEach(b => b.onclick = () => {
     const p = byId(b.dataset.tx);
-    txForm(ctx, {}, { project_id: p.id, client_id: p.client_id, description: p.title, amount: p.price, category: p.billing === "mensal" ? "Mensalidade" : "Projeto", repeat: p.billing === "mensal" });
+    txForm(ctx, {}, { project_id: p.id, client_id: p.client_id, description: p.title, amount: p.price, category: FREQ_CATEGORY[p.billing] || "Projeto", repeat: FREQ_CATEGORY[p.billing] ? p.billing : "nao" });
   });
   el.querySelectorAll("[data-entry]").forEach(b => b.onclick = () => {
     const t = db.time_entries.find(x => x.id === b.dataset.entry);

@@ -9,9 +9,9 @@ Site estático (HTML + JavaScript, sem build) com dados e login no **Supabase**.
 | Tela | O que faz |
 | --- | --- |
 | Painel | Metas do mês (faturamento, lucro, clientes novos, trabalhos entregues) com ritmo; recebido, gasto e saldo do mês; a receber e a pagar; alertas de atrasos; próximos 7 dias; horas por pessoa |
-| Clientes | Funil por etapa (Contato → Proposta → Fechado → Ativo → Encerrado), busca, WhatsApp e Instagram, quanto cada cliente já pagou |
+| Clientes | Funil por etapa, busca, WhatsApp e Instagram; valor fixo e dia do pagamento (semanal, quinzenal ou mensal); semanas pagas no mês; botão **Recebi** |
 | Trabalhos | Status, prazo, responsável, horas estimadas x gastas (cronômetro ou à mão), recebido, gastos, lucro e valor por hora |
-| Financeiro | Lançamentos do mês com previsto x realizado, mensalidades repetidas, atrasados, últimos 6 meses e gastos por categoria |
+| Financeiro | **Gerar cobranças do mês** para todos os clientes fixos; lançamentos com previsto x realizado; repetição semanal, quinzenal ou mensal; atrasados, últimos 6 meses e gastos por categoria |
 | Agenda | Visões de dia, semana e mês; compromissos lado a lado na linha do tempo, cor por pessoa, local com botão de mapa, aviso de conflito ou pouco tempo de deslocamento; prazos e vencimentos do financeiro |
 
 ## Configurar o Supabase (uma vez)

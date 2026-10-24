@@ -1,6 +1,6 @@
 // Financeiro: entradas e saídas do mês, previsto x realizado, atrasados e gastos por categoria.
 import { esc, icon, money, fmtDate, monthName, todayISO } from "../ui.js";
-import { txForm, togglePaid } from "./common.js";
+import { txForm, togglePaid, generateCharges } from "./common.js";
 
 let ym = null;          // "AAAA-MM" do mês aberto
 let kind = "todos";     // todos | entrada | saida | pendentes
@@ -38,7 +38,7 @@ export default function financeiro(el, ctx) {
     <li class="tx ${t.type} ${t.paid ? "paid" : ""} ${overdue ? "overdue" : ""}">
       <button class="tick" data-paid="${t.id}" aria-label="${t.paid ? "Marcar como pendente" : t.type === "entrada" ? "Marcar como recebido" : "Marcar como pago"}" aria-pressed="${t.paid}">${icon("check")}</button>
       <button class="tx-main" data-edit="${t.id}">
-        <span class="min0"><b>${esc(t.description)}</b><small>${esc([t.category, who].filter(Boolean).join(" · "))}${t.series_id ? ` · ${icon("repeat", "i xs")}mensal` : ""}</small></span>
+        <span class="min0"><b>${esc(t.description)}</b><small>${esc([t.category, who].filter(Boolean).join(" · "))}${t.series_id ? ` · ${icon("repeat", "i xs")}recorrente` : ""}</small></span>
         <span class="tx-right"><b class="${t.type === "entrada" ? "pos" : "neg"}">${t.type === "entrada" ? "+" : "−"} ${money(t.amount)}</b>
         <small class="${overdue ? "bad" : ""}">${t.paid ? (t.type === "entrada" ? "Recebido " : "Pago ") + fmtDate(t.paid_date) : (overdue ? "Venceu " : "Vence ") + fmtDate(t.due_date)}</small></span>
       </button>
@@ -55,6 +55,7 @@ export default function financeiro(el, ctx) {
         </div>
       </div>
       <div class="quick">
+        <button class="btn sm" data-gen>${icon("repeat")}Gerar cobranças do mês</button>
         <button class="btn sm" data-new="saida">${icon("down")}Saída</button>
         <button class="btn primary" data-new="entrada">${icon("up")}Entrada</button>
       </div>
@@ -101,6 +102,7 @@ export default function financeiro(el, ctx) {
   el.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { ym = shift(+b.dataset.m); financeiro(el, ctx) });
   el.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { kind = b.dataset.kind; financeiro(el, ctx) });
   el.querySelectorAll("[data-new]").forEach(b => b.onclick = () => txForm(ctx, {}, { type: b.dataset.new, due_date: ym === today.slice(0, 7) ? today : ym + "-01" }));
+  el.querySelector("[data-gen]").onclick = () => generateCharges(ctx, ym);
   el.querySelectorAll("[data-paid]").forEach(b => b.onclick = () => togglePaid(ctx, byId(b.dataset.paid)));
   el.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => txForm(ctx, byId(b.dataset.edit)));
 }

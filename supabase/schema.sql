@@ -93,6 +93,13 @@ create table if not exists goals (
 alter table clients add column if not exists won_at date;        -- quando virou Fechado/Ativo
 alter table projects add column if not exists completed_at date; -- quando foi concluído
 
+-- Valor e frequência de pagamento de cada cliente; cobrança semanal/quinzenal nos trabalhos
+alter table clients add column if not exists fee numeric(12, 2);
+alter table clients add column if not exists billing text;
+alter table clients add column if not exists pay_day smallint;   -- 1 = segunda … 7 = domingo
+alter table projects drop constraint if exists projects_billing_check;
+alter table projects add constraint projects_billing_check check (billing in ('fechado', 'semanal', 'quinzenal', 'mensal'));
+
 create index if not exists projects_client_idx on projects(client_id);
 create index if not exists time_entries_project_idx on time_entries(project_id);
 create index if not exists transactions_due_idx on transactions(due_date);

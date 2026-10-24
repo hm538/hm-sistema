@@ -108,10 +108,11 @@ export function formModal({ title, fields, submit = "Salvar", danger }) {
     document.documentElement.classList.add("modal-open");
     const form = root.querySelector("form");
     const syncShow = () => root.querySelectorAll("[data-show-if]").forEach(el => {
-      const [name, val] = el.dataset.showIf.split("=");
+      const rule = el.dataset.showIf, neg = rule.includes("!=");
+      const [name, val] = rule.split(neg ? "!=" : "=");
       const ctl = form.elements[name];
       const cur = ctl?.type === "checkbox" ? String(ctl.checked) : ctl?.value;
-      el.hidden = cur !== val;
+      el.hidden = neg ? cur === val : cur !== val;
     });
     form.addEventListener("change", syncShow); syncShow();
     const first = form.querySelector("input:not([type=checkbox]),select,textarea");

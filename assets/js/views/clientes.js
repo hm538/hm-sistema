@@ -1,6 +1,6 @@
 // Clientes (CRM): funil por etapa, contato rápido e resumo do que cada cliente já rendeu.
-import { esc, icon, money } from "../ui.js";
-import { clientForm, projectForm, STAGES, label } from "./common.js";
+import { esc, icon, money, todayISO } from "../ui.js";
+import { clientForm, projectForm, receivePayment, STAGES, label, priceLabel, isFixed, WEEKDAYS } from "./common.js";
 
 let filter = "todos";
 let query = "";
@@ -16,6 +16,8 @@ export default function clientes(el, ctx) {
 
   const received = id => db.transactions.filter(t => t.client_id === id && t.type === "entrada" && t.paid).reduce((s, t) => s + Number(t.amount), 0);
   const projects = id => db.projects.filter(p => p.client_id === id);
+  const ym = todayISO().slice(0, 7);
+  const monthCharges = id => db.transactions.filter(t => t.client_id === id && t.type === "entrada" && t.due_date.slice(0, 7) === ym);
   const wa = phone => { const d = (phone || "").replace(/\D/g, ""); return d ? `https://wa.me/${d.length <= 11 ? "55" + d : d}` : "" };
 
   el.innerHTML = `
@@ -40,13 +42,21 @@ export default function clientes(el, ctx) {
           <span class="pill st-${c.stage}">${esc(label(STAGES, c.stage))}</span>
         </div>
         ${c.notes ? `<p class="note">${esc(c.notes)}</p>` : ""}
+        ${c.fee ? (() => {
+          const mc = monthCharges(c.id), paid = mc.filter(t => t.paid), late = mc.filter(t => !t.paid && t.due_date < todayISO());
+          return `<div class="fee-row">
+            <div><span>Valor</span><b>${esc(priceLabel(c.fee, c.billing))}</b>${isFixed(c) && c.pay_day ? `<small>paga ${esc(label(WEEKDAYS, Number(c.pay_day)).toLowerCase())}</small>` : ""}</div>
+            <div><span>Este mês</span><b>${mc.length ? `${paid.length} de ${mc.length} pagas` : "sem cobranças"}</b>${late.length ? `<small class="bad">${late.length} atrasada(s)</small>` : mc.length ? `<small>${money(paid.reduce((s, t) => s + Number(t.amount), 0))} recebido</small>` : ""}</div>
+          </div>`;
+        })() : ""}
         <div class="item-meta">
           <span>${ps.length} trabalho(s)</span>
-          <span>Recebido: <b>${money(received(c.id))}</b></span>
+          <span>Total recebido: <b>${money(received(c.id))}</b></span>
         </div>
         <div class="item-actions">
           ${c.phone ? `<a class="btn sm ghost" href="${wa(c.phone)}" target="_blank" rel="noopener">${icon("whatsapp")}WhatsApp</a>` : ""}
           ${c.instagram ? `<a class="btn sm ghost" href="https://instagram.com/${esc(c.instagram)}" target="_blank" rel="noopener">@${esc(c.instagram)}</a>` : ""}
+          <button class="btn sm ${c.fee ? "" : "ghost"}" data-pay="${c.id}">${icon("check")}Recebi</button>
           <button class="btn sm ghost" data-proj="${c.id}">${icon("plus")}Trabalho</button>
         </div>
       </article>`;
@@ -63,4 +73,5 @@ export default function clientes(el, ctx) {
     card.onkeydown = e => { if (e.key === "Enter") open(e) };
   });
   el.querySelectorAll("[data-proj]").forEach(b => b.onclick = () => projectForm(ctx, {}, { client_id: b.dataset.proj }));
+  el.querySelectorAll("[data-pay]").forEach(b => b.onclick = () => receivePayment(ctx, db.clients.find(c => c.id === b.dataset.pay)));
 }

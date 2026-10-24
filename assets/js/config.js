@@ -16,6 +16,6 @@ export const SERVICES = ["Marketing digital", "Sistemas sob medida", "CRM e auto
 
 // Categorias do financeiro
 export const CATEGORIES = {
-  entrada: ["Projeto", "Mensalidade", "Outro"],
+  entrada: ["Pagamento semanal", "Pagamento quinzenal", "Mensalidade", "Projeto", "Outro"],
   saida: ["Ferramentas e assinaturas", "Anúncios", "Equipe e freelancers", "Impostos", "Equipamentos", "Pró-labore", "Outro"]
 };

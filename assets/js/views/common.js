@@ -1,6 +1,6 @@
 // Rótulos e formulários compartilhados entre as telas.
 import { PEOPLE, SERVICES, CATEGORIES } from "../config.js";
-import { formModal, confirmModal, todayISO, addMonths, toISO, toast } from "../ui.js";
+import { formModal, confirmModal, todayISO, addMonths, addDays, toISO, toast, money } from "../ui.js";
 
 export const STAGES = [
   ["contato", "Contato"], ["proposta", "Proposta"], ["fechado", "Fechado"], ["ativo", "Ativo"], ["encerrado", "Encerrado"]
@@ -10,6 +10,76 @@ export const STATUSES = [
 ];
 export const KINDS = [["reuniao", "Reunião"], ["gravacao", "Gravação"], ["entrega", "Entrega"], ["outro", "Outro"]];
 export const label = (list, v) => (list.find(([k]) => k === v) || [, v || ""])[1];
+
+// Frequência de pagamento
+export const FREQS = [["semanal", "Semanal"], ["quinzenal", "Quinzenal"], ["mensal", "Mensal"]];
+const FREQ_SUFFIX = { semanal: "/semana", quinzenal: "/15 dias", mensal: "/mês" };
+export const FREQ_CATEGORY = { semanal: "Pagamento semanal", quinzenal: "Pagamento quinzenal", mensal: "Mensalidade" };
+export const priceLabel = (value, freq) => value ? `${money(value)}${FREQ_SUFFIX[freq] || ""}` : "";
+// Próxima data de uma série, conforme a frequência
+const stepDate = (iso, freq, i) => freq === "semanal" ? addDays(iso, 7 * i) : freq === "quinzenal" ? addDays(iso, 14 * i) : addMonths(iso, i);
+const defaultTimes = { semanal: 12, quinzenal: 6, mensal: 6 };
+// Dia da semana do pagamento (1 = segunda … 7 = domingo)
+export const WEEKDAYS = [[1, "Segunda"], [2, "Terça"], [3, "Quarta"], [4, "Quinta"], [5, "Sexta"], [6, "Sábado"], [7, "Domingo"]];
+const isoWeekday = iso => { const d = new Date(iso + "T12:00").getDay(); return d === 0 ? 7 : d };
+export const isFixed = c => c.fee > 0 && FREQS.some(([k]) => k === c.billing) && ["ativo", "fechado"].includes(c.stage);
+
+// Datas de cobrança de um cliente fixo dentro de um mês ("AAAA-MM")
+export function chargeDates(ctx, c, ym) {
+  const [y, m] = ym.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const days = Array.from({ length: last }, (_, i) => `${ym}-${String(i + 1).padStart(2, "0")}`);
+  const wd = Number(c.pay_day) || 1;
+  const onDay = days.filter(d => isoWeekday(d) === wd);
+  if (c.billing === "semanal") return onDay;
+  if (c.billing === "mensal") return onDay.slice(0, 1);
+  // quinzenal: segue de 14 em 14 dias a partir da última cobrança já lançada
+  const prev = ctx.db.transactions.filter(t => t.client_id === c.id && t.type === "entrada" && t.due_date < days[0]).map(t => t.due_date).sort().pop();
+  if (!prev) return onDay.filter((_, i) => i % 2 === 0);
+  const out = []; let d = addDays(prev, 14);
+  while (d < days[0]) d = addDays(d, 14);
+  while (d <= days[last - 1]) { out.push(d); d = addDays(d, 14) }
+  return out;
+}
+
+// Cria as cobranças do mês para todos os clientes fixos, sem duplicar as que já existem
+export async function generateCharges(ctx, ym) {
+  const rows = [];
+  ctx.db.clients.filter(isFixed).forEach(c => {
+    const project = ctx.db.projects.find(p => p.client_id === c.id && !["concluido", "pausado"].includes(p.status));
+    chargeDates(ctx, c, ym).forEach(due => {
+      const exists = ctx.db.transactions.some(t => t.client_id === c.id && t.type === "entrada" && t.due_date === due);
+      if (!exists) rows.push({
+        type: "entrada", amount: c.fee, due_date: due, paid: false, paid_date: null,
+        description: `${FREQ_CATEGORY[c.billing]} · ${c.company || c.name}`, category: FREQ_CATEGORY[c.billing],
+        client_id: c.id, project_id: project?.id || null
+      });
+    });
+  });
+  const fixed = ctx.db.clients.filter(isFixed);
+  if (!fixed.length) return toast("Nenhum cliente fixo. Preencha valor, frequência e dia do pagamento no cadastro do cliente (etapa Ativo).", "erro");
+  if (!rows.length) return toast("As cobranças deste mês já estão todas lançadas.");
+  const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+  const ok = await confirmModal(`Criar ${rows.length} cobrança(s) de ${new Set(rows.map(r => r.client_id)).size} cliente(s), somando ${money(total)}?`, "Criar cobranças");
+  if (ok) return ctx.run(() => ctx.store.insert("transactions", rows), `${rows.length} cobranças criadas`, ["transactions"]);
+}
+
+// "Recebi": marca como paga a cobrança pendente mais antiga até esta semana; se não houver, registra na hora
+export async function receivePayment(ctx, c) {
+  const limit = addDays(todayISO(), 6);
+  const pending = ctx.db.transactions.filter(t => t.client_id === c.id && t.type === "entrada" && !t.paid && t.due_date <= limit)
+    .sort((a, b) => a.due_date.localeCompare(b.due_date))[0];
+  if (pending) {
+    const ok = await confirmModal(`Confirmar recebimento de ${money(pending.amount)} (${c.company || c.name}, cobrança de ${pending.due_date.split("-").reverse().slice(0, 2).join("/")})?`, "Recebi");
+    if (ok) return ctx.run(() => ctx.store.update("transactions", pending.id, { paid: true, paid_date: todayISO() }), "Pagamento registrado", ["transactions"]);
+    return;
+  }
+  return txForm(ctx, {}, {
+    type: "entrada", amount: c.fee, client_id: c.id, paid: true,
+    category: FREQ_CATEGORY[c.billing] || "Projeto",
+    description: `${FREQ_CATEGORY[c.billing] || "Pagamento"} · ${c.company || c.name}`
+  });
+}
 
 const opts = arr => arr.map(v => [v, v]);
 const none = (txt = "—") => [["", txt]];
@@ -28,6 +98,9 @@ export async function clientForm(ctx, c = {}) {
       { name: "email", label: "E-mail", type: "email", value: c.email },
       { name: "instagram", label: "Instagram", value: c.instagram, placeholder: "@perfil" },
       { name: "stage", label: "Etapa", type: "select", options: STAGES, value: c.stage || "contato" },
+      { name: "fee", label: "Valor que o cliente paga (R$)", type: "number", step: "0.01", value: c.fee },
+      { name: "billing", label: "Frequência do pagamento", type: "select", options: [...FREQS, ["avulso", "Avulso / por projeto"]], value: c.billing || "semanal" },
+      { name: "pay_day", label: "Dia em que paga", type: "select", options: WEEKDAYS, value: c.pay_day || 1, showIf: "billing!=avulso", hint: "Usado para gerar as cobranças no Financeiro" },
       { name: "notes", label: "Anotações", type: "textarea", value: c.notes, full: true, placeholder: "O que conversaram, o que o cliente quer, próximos passos…" }
     ]
   });
@@ -38,6 +111,7 @@ export async function clientForm(ctx, c = {}) {
     return;
   }
   if (r.instagram) r.instagram = r.instagram.replace(/^@/, "");
+  r.pay_day = r.billing === "avulso" ? null : Number(r.pay_day) || null;
   // Guarda quando o cliente foi fechado (usado nas metas)
   if (["fechado", "ativo"].includes(r.stage) && !c.won_at) r.won_at = todayISO();
   if (!["fechado", "ativo", "encerrado"].includes(r.stage)) r.won_at = null;
@@ -58,8 +132,8 @@ export async function projectForm(ctx, p = {}, preset = {}) {
       { name: "start_date", label: "Início", type: "date", value: p.start_date || todayISO() },
       { name: "due_date", label: "Prazo de entrega", type: "date", value: p.due_date },
       { name: "hours_estimated", label: "Horas estimadas", type: "number", step: "0.5", value: p.hours_estimated, hint: "Quanto tempo vocês acham que vai levar" },
-      { name: "billing", label: "Cobrança", type: "select", options: [["fechado", "Valor fechado"], ["mensal", "Mensalidade"]], value: p.billing || "fechado" },
-      { name: "price", label: "Valor (R$)", type: "number", step: "0.01", value: p.price, hint: "Total do projeto ou valor de cada mês" },
+      { name: "billing", label: "Cobrança", type: "select", options: [["fechado", "Valor fechado"], ...FREQS], value: p.billing || "fechado" },
+      { name: "price", label: "Valor (R$)", type: "number", step: "0.01", value: p.price, hint: "Total do projeto, ou valor de cada semana/quinzena/mês" },
       { name: "notes", label: "Anotações", type: "textarea", value: p.notes, full: true }
     ]
   });
@@ -129,12 +203,12 @@ export async function txForm(ctx, t = {}, preset = {}) {
     { name: "due_date", label: "Vencimento", type: "date", required: true, value: t.due_date || preset.due_date || todayISO() },
     { name: "client_id", label: "Cliente", type: "select", options: clientOpts(ctx), value: t.client_id ?? preset.client_id },
     { name: "project_id", label: "Trabalho", type: "select", options: projectOpts(ctx), value: t.project_id ?? preset.project_id },
-    { name: "paid", label: type === "entrada" ? "Já recebido" : "Já pago", type: "checkbox", value: t.paid ?? false },
+    { name: "paid", label: type === "entrada" ? "Já recebido" : "Já pago", type: "checkbox", value: t.paid ?? preset.paid ?? false },
     { name: "paid_date", label: "Data do pagamento", type: "date", value: t.paid_date || todayISO(), showIf: "paid=true" }
   ];
   if (isNew) fields.push(
-    { name: "repeat", label: "Repetir todo mês (mensalidade ou assinatura)", type: "checkbox", value: preset.repeat || false, full: true },
-    { name: "months", label: "Por quantos meses", type: "number", step: "1", value: 12, showIf: "repeat=true", hint: "Cria um lançamento por mês, a partir do vencimento" }
+    { name: "repeat", label: "Repetir", type: "select", options: [["nao", "Não repete"], ["semanal", "Toda semana"], ["quinzenal", "A cada 15 dias"], ["mensal", "Todo mês"]], value: preset.repeat || "nao" },
+    { name: "times", label: "Quantas vezes", type: "number", step: "1", value: defaultTimes[preset.repeat] || 12, showIf: "repeat!=nao", hint: "Cria um lançamento para cada vez, a partir do vencimento" }
   );
   const r = await formModal({
     title: isNew ? "Novo lançamento" : "Editar lançamento",
@@ -145,7 +219,7 @@ export async function txForm(ctx, t = {}, preset = {}) {
   if (r.__danger) {
     if (t.series_id) {
       const all = await formModal({ title: "Excluir lançamento", fields: [
-        { name: "scope", label: "O que excluir", type: "select", full: true, options: [["one", "Só este mês"], ["future", "Este e os próximos não pagos da mensalidade"]], value: "one" }
+        { name: "scope", label: "O que excluir", type: "select", full: true, options: [["one", "Só este lançamento"], ["future", "Este e os próximos não pagos da série"]], value: "one" }
       ], submit: "Excluir" });
       if (!all) return;
       if (all.scope === "future") {
@@ -155,12 +229,12 @@ export async function txForm(ctx, t = {}, preset = {}) {
     } else if (!(await confirmModal(`Excluir "${t.description}"?`))) return;
     return ctx.run(() => ctx.store.remove("transactions", t.id), "Lançamento excluído", ["transactions"]);
   }
-  const { repeat, months, ...row } = r;
+  const { repeat, times, ...row } = r;
   if (!row.paid) row.paid_date = null;
-  if (isNew && repeat && months > 1) {
+  if (isNew && repeat && repeat !== "nao" && times > 1) {
     const series = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
-    const rows = Array.from({ length: Math.min(months, 60) }, (_, i) => ({
-      ...row, series_id: series, due_date: addMonths(row.due_date, i),
+    const rows = Array.from({ length: Math.min(times, 104) }, (_, i) => ({
+      ...row, series_id: series, due_date: stepDate(row.due_date, repeat, i),
       paid: i === 0 ? row.paid : false, paid_date: i === 0 ? row.paid_date : null
     }));
     return ctx.run(() => ctx.store.insert("transactions", rows), `${rows.length} lançamentos criados`, ["transactions"]);

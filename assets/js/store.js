@@ -72,7 +72,7 @@ function seed() {
   const ts = new Date().toISOString();
   return {
     clients: [
-      { id: c1, name: "Cliente Exemplo 1", company: "Padaria Exemplo", phone: "62 90000-0001", stage: "ativo", won_at: d(-20), notes: "Exemplo do modo demonstração.", created_at: ts },
+      { id: c1, name: "Cliente Exemplo 1", company: "Padaria Exemplo", phone: "62 90000-0001", stage: "ativo", won_at: d(-20), fee: 350, billing: "semanal", pay_day: 5, notes: "Exemplo do modo demonstração.", created_at: ts },
       { id: c2, name: "Cliente Exemplo 2", company: "Loja Exemplo", phone: "62 90000-0002", stage: "proposta", notes: "", created_at: ts },
       { id: c3, name: "Cliente Exemplo 3", company: "Clínica Exemplo", stage: "contato", notes: "", created_at: ts }
     ],
