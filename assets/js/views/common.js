@@ -1,6 +1,6 @@
 // Rótulos e formulários compartilhados entre as telas.
 import { PEOPLE, SERVICES, CATEGORIES } from "../config.js";
-import { formModal, confirmModal, todayISO, addMonths, toISO } from "../ui.js";
+import { formModal, confirmModal, todayISO, addMonths, toISO, toast } from "../ui.js";
 
 export const STAGES = [
   ["contato", "Contato"], ["proposta", "Proposta"], ["fechado", "Fechado"], ["ativo", "Ativo"], ["encerrado", "Encerrado"]
@@ -185,13 +185,13 @@ export async function eventForm(ctx, e = {}, preset = {}) {
     fields: [
       { name: "title", label: "Título", required: true, value: e.title, full: true, placeholder: "Ex.: Reunião com cliente, Gravação, Entrega do site" },
       { name: "kind", label: "Tipo", type: "select", options: KINDS, value: e.kind || "reuniao" },
-      { name: "person", label: "Quem vai", type: "select", options: [["Todos", "Os dois"], ...opts(PEOPLE)], value: e.person || "Todos" },
+      { name: "person", label: "Quem vai", type: "select", options: [["Todos", "Os dois"], ...opts(PEOPLE)], value: e.person || preset.person || "Todos" },
       { name: "date", label: "Dia", type: "date", required: true, value: start ? toISO(start) : (preset.date || todayISO()) },
-      { name: "start", label: "Começa", type: "time", required: true, value: hhmm(start) || "09:00" },
-      { name: "end", label: "Termina", type: "time", value: hhmm(end) },
+      { name: "start", label: "Começa", type: "time", required: true, value: hhmm(start) || preset.start || "09:00" },
+      { name: "end", label: "Termina", type: "time", value: hhmm(end) || preset.end || "", hint: "Ajuda a ver conflitos de horário" },
       { name: "client_id", label: "Cliente", type: "select", options: clientOpts(ctx), value: e.client_id ?? preset.client_id },
       { name: "project_id", label: "Trabalho", type: "select", options: projectOpts(ctx), value: e.project_id ?? preset.project_id },
-      { name: "location", label: "Local ou link", value: e.location, full: true },
+      { name: "location", label: "Local (endereço) ou link da reunião", value: e.location, full: true, placeholder: "Ex.: Av. T-63, 1200 - Setor Bueno, ou link do Meet" },
       { name: "notes", label: "Anotações", type: "textarea", value: e.notes, full: true }
     ]
   });
@@ -201,6 +201,10 @@ export async function eventForm(ctx, e = {}, preset = {}) {
     return;
   }
   const { date, start: s, end: en, ...row } = r;
+  if (en && en <= s) {
+    toast("O horário de término precisa ser depois do início.", "erro");
+    return eventForm(ctx, { ...e, ...row, start_at: new Date(`${date}T${s}`).toISOString(), end_at: null }, preset);
+  }
   row.start_at = new Date(`${date}T${s}`).toISOString();
   row.end_at = en ? new Date(`${date}T${en}`).toISOString() : null;
   return ctx.run(() => e.id ? ctx.store.update("events", e.id, row) : ctx.store.insert("events", row), "Compromisso salvo", ["events"]);

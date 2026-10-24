@@ -12,7 +12,7 @@ Site estático (HTML + JavaScript, sem build) com dados e login no **Supabase**.
 | Clientes | Funil por etapa (Contato → Proposta → Fechado → Ativo → Encerrado), busca, WhatsApp e Instagram, quanto cada cliente já pagou |
 | Trabalhos | Status, prazo, responsável, horas estimadas x gastas (cronômetro ou à mão), recebido, gastos, lucro e valor por hora |
 | Financeiro | Lançamentos do mês com previsto x realizado, mensalidades repetidas, atrasados, últimos 6 meses e gastos por categoria |
-| Agenda | Calendário com compromissos, prazos de trabalhos e vencimentos do financeiro |
+| Agenda | Visões de dia, semana e mês; compromissos lado a lado na linha do tempo, cor por pessoa, local com botão de mapa, aviso de conflito ou pouco tempo de deslocamento; prazos e vencimentos do financeiro |
 
 ## Configurar o Supabase (uma vez)
 
@@ -21,6 +21,8 @@ Site estático (HTML + JavaScript, sem build) com dados e login no **Supabase**.
 3. **Criar os usuários:** *Authentication* → *Users* → *Add user* → *Create new user* (marque *Auto Confirm User*). Um para o Neto e um para a Mariana.
 4. **Ligar o site ao banco:** *Project Settings* → *API* (ou *Data API*): copie a **Project URL** e a chave **anon / publishable** para `assets/js/config.js`.
    Nunca use a chave `service_role` / `secret` no site.
+
+5. **(Opcional) Cadastrar os clientes atuais:** rode `supabase/clientes-iniciais.sql` no SQL Editor.
 
 Sem a configuração do passo 4, o sistema abre em **modo demonstração**, com dados de exemplo salvos só no navegador.
 
