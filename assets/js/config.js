@@ -1,0 +1,21 @@
+// Configuração do HM Sistema.
+// Supabase → Project Settings → API (ou "Data API"):
+//   url  = "Project URL"
+//   key  = chave "anon public" (ou "publishable"). NUNCA coloque aqui a "service_role"/"secret".
+// Com url vazio, o sistema abre em MODO DEMONSTRAÇÃO, com dados de exemplo salvos só no navegador.
+export const SUPABASE = {
+  url: "",
+  key: ""
+};
+
+// Quem trabalha na HM (aparece em responsável, horas e agenda)
+export const PEOPLE = ["Neto", "Mariana"];
+
+// Serviços que a HM vende
+export const SERVICES = ["Marketing digital", "Sistemas sob medida", "CRM e automação", "Delivery", "Sites e cartões digitais", "Identidade visual", "Outro"];
+
+// Categorias do financeiro
+export const CATEGORIES = {
+  entrada: ["Projeto", "Mensalidade", "Outro"],
+  saida: ["Ferramentas e assinaturas", "Anúncios", "Equipe e freelancers", "Impostos", "Equipamentos", "Pró-labore", "Outro"]
+};
