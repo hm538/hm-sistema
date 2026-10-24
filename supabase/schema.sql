@@ -78,6 +78,21 @@ create table if not exists events (
   created_at timestamptz not null default now()
 );
 
+-- Metas do mês (uma linha por mês, "AAAA-MM")
+create table if not exists goals (
+  id uuid primary key default gen_random_uuid(),
+  month text not null unique,
+  revenue numeric(12, 2),        -- faturamento: entradas recebidas
+  profit numeric(12, 2),         -- lucro: entradas recebidas - saídas pagas
+  new_clients integer,           -- clientes novos fechados
+  delivered integer,             -- trabalhos entregues
+  created_at timestamptz not null default now()
+);
+
+-- Datas usadas pelas metas (seguro rodar de novo)
+alter table clients add column if not exists won_at date;        -- quando virou Fechado/Ativo
+alter table projects add column if not exists completed_at date; -- quando foi concluído
+
 create index if not exists projects_client_idx on projects(client_id);
 create index if not exists time_entries_project_idx on time_entries(project_id);
 create index if not exists transactions_due_idx on transactions(due_date);
@@ -89,7 +104,7 @@ create index if not exists events_start_idx on events(start_at);
 do $$
 declare t text;
 begin
-  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events'] loop
+  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "equipe HM" on %I', t);
     execute format('create policy "equipe HM" on %I for all to authenticated using (true) with check (true)', t);

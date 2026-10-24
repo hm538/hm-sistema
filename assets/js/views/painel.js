@@ -1,7 +1,7 @@
 // Painel: resumo do mês, alertas e próximos compromissos.
 import { PEOPLE } from "../config.js";
 import { esc, icon, money, todayISO, toISO, fmtDate, fmtDateLong, fmtTime, fmtHours, monthName, daysFrom, addDays } from "../ui.js";
-import { clientForm, projectForm, txForm, eventForm, togglePaid, projectMinutes, label, KINDS } from "./common.js";
+import { clientForm, projectForm, txForm, eventForm, goalForm, togglePaid, projectMinutes, label, KINDS } from "./common.js";
 
 export default function painel(el, ctx) {
   const { db } = ctx;
@@ -36,6 +36,27 @@ export default function painel(el, ctx) {
   const minutesBy = PEOPLE.map(p => [p, db.time_entries.filter(t => t.person === p && inMonth(t.date)).reduce((s, t) => s + t.minutes, 0)]);
   const maxMin = Math.max(60, ...minutesBy.map(([, m]) => m));
 
+  // Metas do mês
+  const goal = db.goals.find(g => g.month === ym);
+  const prevYm = (() => { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` })();
+  const lastGoal = db.goals.find(g => g.month === prevYm) || [...db.goals].sort((a, b) => b.month.localeCompare(a.month))[0];
+  const pace = now.getDate() / new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const goalRows = goal ? [
+    ["Faturamento", received, goal.revenue, money],
+    ["Lucro", received - spent, goal.profit, money],
+    ["Clientes novos fechados", db.clients.filter(c => inMonth(c.won_at)).length, goal.new_clients, String],
+    ["Trabalhos entregues", db.projects.filter(p => inMonth(p.completed_at)).length, goal.delivered, String]
+  ].filter(([, , target]) => target) : [];
+  const goalHtml = ([name, actual, target, fmt]) => {
+    const pct = Math.max(0, actual / target);
+    const state = pct >= 1 ? ["done", "Meta batida"] : pct >= pace - .05 ? ["ok", "No ritmo"] : ["behind", "Abaixo do ritmo"];
+    return `<li class="goal ${state[0]}">
+      <div class="goal-top"><span>${esc(name)}</span><em>${state[1]}</em></div>
+      <div class="goal-num"><b>${esc(fmt(actual))}</b><small>de ${esc(fmt(target))}${pct < 1 ? ` · faltam ${esc(fmt(target - actual))}` : ""}</small></div>
+      <div class="bar goal-bar"><i style="width:${Math.min(100, pct * 100)}%"></i><s style="left:${pace * 100}%" title="Onde deveria estar hoje"></s></div>
+    </li>`;
+  };
+
   const alerts = [
     ...lateIn.map(t => ({ tone: "bad", text: `Recebimento atrasado: ${t.description} (${money(t.amount)}), venceu ${fmtDate(t.due_date)}`, act: "Recebido", fn: () => togglePaid(ctx, t) })),
     ...lateOut.map(t => ({ tone: "warn", text: `Conta atrasada: ${t.description} (${money(t.amount)}), venceu ${fmtDate(t.due_date)}`, act: "Paguei", fn: () => togglePaid(ctx, t) })),
@@ -63,6 +84,12 @@ export default function painel(el, ctx) {
       <div class="kpi"><span>Trabalhos em aberto</span><b>${open.length}</b>${lateProjects.length ? `<small class="bad">${lateProjects.length} atrasado(s)</small>` : ""}</div>
     </section>
 
+    <section class="card goals-card">
+      <div class="card-head"><h2>Metas do mês</h2><button class="btn sm ghost" data-goal>${icon(goal ? "edit" : "plus")}${goal ? "Editar metas" : "Definir metas"}</button></div>
+      ${goalRows.length ? `<ul class="goals">${goalRows.map(goalHtml).join("")}</ul><p class="muted">A marca na barra mostra onde vocês deveriam estar hoje (dia ${now.getDate()}) para bater a meta no fim do mês.</p>`
+        : `<p class="empty">Nenhuma meta definida para este mês.${lastGoal ? " Dá para começar com as do mês passado." : ""}</p>`}
+    </section>
+
     ${alerts.length ? `<section class="card"><h2>Precisa de atenção</h2><ul class="alerts">${alerts.map((a, i) =>
       `<li class="${a.tone}">${icon("alert")}<span>${esc(a.text)}</span><button class="btn sm ghost" data-alert="${i}">${esc(a.act)}</button></li>`).join("")}</ul></section>` : ""}
 
@@ -88,6 +115,7 @@ export default function painel(el, ctx) {
   el.querySelector('[data-q="event"]').onclick = () => eventForm(ctx);
   el.querySelector('[data-q="project"]').onclick = () => projectForm(ctx);
   el.querySelector('[data-q="client"]').onclick = () => clientForm(ctx);
+  el.querySelector("[data-goal]").onclick = () => goalForm(ctx, ym, goal || {}, goal ? {} : (lastGoal || {}));
   el.querySelectorAll("[data-alert]").forEach(b => b.onclick = () => alerts[b.dataset.alert].fn());
   el.querySelectorAll("[data-up]").forEach(b => b.onclick = () => upcoming[b.dataset.up].open());
 }

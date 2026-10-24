@@ -1,7 +1,7 @@
 // Trabalhos: status, prazo, horas estimadas x gastas (com cronômetro) e resultado financeiro de cada um.
 import { PEOPLE } from "../config.js";
 import { esc, icon, money, fmtDate, fmtHours, daysFrom, todayISO } from "../ui.js";
-import { projectForm, timeForm, txForm, STATUSES, label, projectMinutes, projectMoney } from "./common.js";
+import { projectForm, timeForm, txForm, STATUSES, label, projectMinutes, projectMoney, completion } from "./common.js";
 
 let show = "abertos";
 let owner = "todos";
@@ -106,7 +106,7 @@ export default function trabalhos(el, ctx) {
     timeForm(ctx, byId(t.project_id), t);
   });
   el.querySelectorAll("[data-status]").forEach(s => s.onchange = () =>
-    ctx.run(() => ctx.store.update("projects", s.dataset.status, { status: s.value }), `Status: ${label(STATUSES, s.value)}`, ["projects"]));
+    ctx.run(() => ctx.store.update("projects", s.dataset.status, { status: s.value, ...completion(byId(s.dataset.status), s.value) }), `Status: ${label(STATUSES, s.value)}`, ["projects"]));
   el.querySelectorAll("[data-start]").forEach(b => b.onclick = () => {
     const p = byId(b.dataset.start);
     setTimer({ project_id: p.id, person: p.owner || PEOPLE[0], start: Date.now() });

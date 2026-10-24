@@ -1,7 +1,7 @@
 // Acesso aos dados. Mesma interface para o Supabase e para o modo demonstração.
 import { SUPABASE } from "./config.js";
 
-export const TABLES = ["clients", "projects", "time_entries", "transactions", "events"];
+export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals"];
 export const demo = !SUPABASE.url;
 
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now());
@@ -38,6 +38,7 @@ function localStore() {
   let data;
   try { data = JSON.parse(localStorage.getItem(KEY)) } catch { data = null }
   if (!data) data = seed();
+  TABLES.forEach(t => { data[t] = data[t] || [] });
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)) } catch {} };
   save();
   const now = () => new Date().toISOString();
@@ -71,7 +72,7 @@ function seed() {
   const ts = new Date().toISOString();
   return {
     clients: [
-      { id: c1, name: "Cliente Exemplo 1", company: "Padaria Exemplo", phone: "62 90000-0001", stage: "ativo", notes: "Exemplo do modo demonstração.", created_at: ts },
+      { id: c1, name: "Cliente Exemplo 1", company: "Padaria Exemplo", phone: "62 90000-0001", stage: "ativo", won_at: d(-20), notes: "Exemplo do modo demonstração.", created_at: ts },
       { id: c2, name: "Cliente Exemplo 2", company: "Loja Exemplo", phone: "62 90000-0002", stage: "proposta", notes: "", created_at: ts },
       { id: c3, name: "Cliente Exemplo 3", company: "Clínica Exemplo", stage: "contato", notes: "", created_at: ts }
     ],
@@ -92,6 +93,9 @@ function seed() {
       { id: uuid(), type: "entrada", description: "Cardápio digital (50%)", amount: 600, category: "Projeto", client_id: c1, project_id: p2, due_date: d(-1), paid: false, created_at: ts },
       { id: uuid(), type: "saida", description: "Ferramenta de design", amount: 89.9, category: "Ferramentas e assinaturas", due_date: d(-6), paid: true, paid_date: d(-6), created_at: ts },
       { id: uuid(), type: "saida", description: "Anúncios", amount: 300, category: "Anúncios", project_id: p1, due_date: d(5), paid: false, created_at: ts }
+    ],
+    goals: [
+      { id: uuid(), month: d(0).slice(0, 7), revenue: 5000, profit: 3500, new_clients: 2, delivered: 2, created_at: ts }
     ],
     events: [
       { id: uuid(), title: "Reunião de proposta", kind: "reuniao", start_at: at(1, 10), end_at: at(1, 11), client_id: c2, person: "Neto", location: "Online", created_at: ts },

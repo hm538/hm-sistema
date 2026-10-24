@@ -38,6 +38,9 @@ export async function clientForm(ctx, c = {}) {
     return;
   }
   if (r.instagram) r.instagram = r.instagram.replace(/^@/, "");
+  // Guarda quando o cliente foi fechado (usado nas metas)
+  if (["fechado", "ativo"].includes(r.stage) && !c.won_at) r.won_at = todayISO();
+  if (!["fechado", "ativo", "encerrado"].includes(r.stage)) r.won_at = null;
   return ctx.run(() => c.id ? ctx.store.update("clients", c.id, r) : ctx.store.insert("clients", r), c.id ? "Cliente salvo" : "Cliente cadastrado");
 }
 
@@ -66,7 +69,31 @@ export async function projectForm(ctx, p = {}, preset = {}) {
       return ctx.run(() => ctx.store.remove("projects", p.id), "Trabalho excluído");
     return;
   }
+  Object.assign(r, completion(p, r.status));
   return ctx.run(() => p.id ? ctx.store.update("projects", p.id, r) : ctx.store.insert("projects", r), p.id ? "Trabalho salvo" : "Trabalho cadastrado");
+}
+
+// Data de conclusão de um trabalho (usada nas metas)
+export function completion(p, status) {
+  if (status === "concluido") return { completed_at: p.completed_at || todayISO() };
+  return { completed_at: null };
+}
+
+// ---------- Metas ----------
+export async function goalForm(ctx, ym, g = {}, base = {}) {
+  const v = k => g[k] ?? base[k] ?? null;
+  const r = await formModal({
+    title: `Metas de ${ym.slice(5)}/${ym.slice(0, 4)}`,
+    fields: [
+      { name: "revenue", label: "Faturamento (R$)", type: "number", step: "0.01", value: v("revenue"), hint: "Entradas recebidas no mês" },
+      { name: "profit", label: "Lucro (R$)", type: "number", step: "0.01", value: v("profit"), hint: "Recebido menos gasto" },
+      { name: "new_clients", label: "Clientes novos fechados", type: "number", step: "1", value: v("new_clients") },
+      { name: "delivered", label: "Trabalhos entregues", type: "number", step: "1", value: v("delivered") }
+    ],
+    submit: "Salvar metas"
+  });
+  if (!r) return;
+  return ctx.run(() => g.id ? ctx.store.update("goals", g.id, r) : ctx.store.insert("goals", { month: ym, ...r }), "Metas salvas", ["goals"]);
 }
 
 // ---------- Horas ----------
