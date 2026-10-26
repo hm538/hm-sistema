@@ -14,6 +14,10 @@ export const PEOPLE = ["Neto", "Mariana"];
 // Serviços que a HM vende
 export const SERVICES = ["Marketing digital", "Sistemas sob medida", "CRM e automação", "Delivery", "Sites e cartões digitais", "Identidade visual", "Outro"];
 
+// Calendário de postagens
+export const CHANNELS = ["Instagram", "TikTok", "Facebook", "YouTube", "LinkedIn", "WhatsApp", "Outro"];
+export const FORMATS = ["Reels", "Carrossel", "Feed (foto)", "Stories", "Vídeo", "Outro"];
+
 // Formas de pagamento
 export const METHODS = ["Pix", "Dinheiro", "Cartão de crédito", "Cartão de débito", "Boleto", "Transferência"];
 

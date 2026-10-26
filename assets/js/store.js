@@ -1,7 +1,7 @@
 // Acesso aos dados. Mesma interface para o Supabase e para o modo demonstração.
 import { SUPABASE } from "./config.js";
 
-export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals"];
+export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals", "posts"];
 export const demo = !SUPABASE.url;
 
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now());
@@ -93,6 +93,13 @@ function seed() {
       { id: uuid(), type: "entrada", description: "Cardápio digital (50%)", amount: 600, category: "Projeto", client_id: c1, project_id: p2, due_date: d(-1), paid: false, created_at: ts },
       { id: uuid(), type: "saida", description: "Ferramenta de design", amount: 89.9, category: "Ferramentas e assinaturas", due_date: d(-6), paid: true, paid_date: d(-6), created_at: ts },
       { id: uuid(), type: "saida", description: "Anúncios", amount: 300, category: "Anúncios", project_id: p1, due_date: d(5), paid: false, created_at: ts }
+    ],
+    posts: [
+      { id: uuid(), client_id: c1, date: d(-1), time: "18:00", channel: "Instagram", format: "Reels", title: "Bastidores da cozinha", status: "aprovacao", owner: "Mariana", created_at: ts },
+      { id: uuid(), client_id: c1, date: d(0), time: "12:00", channel: "Instagram", format: "Carrossel", title: "Cardápio da semana", status: "agendado", owner: "Mariana", created_at: ts },
+      { id: uuid(), client_id: c2, date: d(1), time: "19:00", channel: "Instagram", format: "Stories", title: "Enquete de produtos", status: "producao", owner: "Neto", created_at: ts },
+      { id: uuid(), client_id: c1, date: d(2), time: "18:00", channel: "TikTok", format: "Vídeo", title: "Receita rápida", status: "ideia", owner: "Mariana", created_at: ts },
+      { id: uuid(), client_id: c2, date: d(-3), time: "10:00", channel: "Instagram", format: "Feed", title: "Promoção de outubro", status: "publicado", owner: "Neto", created_at: ts }
     ],
     goals: [
       { id: uuid(), month: d(0).slice(0, 7), revenue: 5000, profit: 3500, new_clients: 2, delivered: 2, created_at: ts }

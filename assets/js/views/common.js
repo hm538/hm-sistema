@@ -1,5 +1,5 @@
 // Rótulos e formulários compartilhados entre as telas.
-import { PEOPLE, SERVICES, CATEGORIES, METHODS } from "../config.js";
+import { PEOPLE, SERVICES, CATEGORIES, METHODS, CHANNELS, FORMATS } from "../config.js";
 import { formModal, confirmModal, todayISO, addMonths, addDays, toISO, toast, money } from "../ui.js";
 
 export const STAGES = [
@@ -306,4 +306,77 @@ export function projectMoney(ctx, id) {
   const tx = ctx.db.transactions.filter(t => t.project_id === id);
   const sum = (type, paidOnly) => tx.filter(t => t.type === type && (!paidOnly || t.paid)).reduce((s, t) => s + Number(t.amount), 0);
   return { inPaid: sum("entrada", true), inTotal: sum("entrada"), outPaid: sum("saida", true), outTotal: sum("saida") };
+}
+
+// ---------- Postagens ----------
+export const POST_STATUS = [["ideia", "Ideia"], ["producao", "Em produção"], ["aprovacao", "Aprovação do cliente"], ["agendado", "Agendado"], ["publicado", "Publicado"]];
+export const nextStatus = st => { const i = POST_STATUS.findIndex(([k]) => k === st); return i >= 0 && i < POST_STATUS.length - 1 ? POST_STATUS[i + 1][0] : null };
+const activeClients = ctx => ctx.db.clients.filter(c => c.stage !== "encerrado");
+const postClientOpts = ctx => [["", "Escolha o cliente"], ...activeClients(ctx).map(c => [c.id, c.company || c.name])];
+
+export async function postForm(ctx, p = {}, preset = {}) {
+  const r = await formModal({
+    title: p.id ? "Editar post" : "Novo post",
+    danger: p.id ? "Excluir" : null,
+    fields: [
+      { name: "client_id", label: "Cliente", type: "select", required: true, options: postClientOpts(ctx), value: p.client_id ?? preset.client_id ?? "" },
+      { name: "title", label: "Tema do post", required: true, value: p.title, placeholder: "Ex.: Bastidores da produção, Promoção da semana" },
+      { name: "date", label: "Dia", type: "date", required: true, value: p.date || preset.date || todayISO() },
+      { name: "time", label: "Horário", type: "time", value: p.time || preset.time || "" },
+      { name: "channel", label: "Rede", type: "select", options: opts(CHANNELS), value: p.channel || "Instagram" },
+      { name: "format", label: "Formato", type: "select", options: opts(FORMATS), value: p.format || "Reels" },
+      { name: "status", label: "Etapa", type: "select", options: POST_STATUS, value: p.status || preset.status || "ideia" },
+      { name: "owner", label: "Responsável", type: "select", options: opts(PEOPLE), value: p.owner || preset.owner || PEOPLE[0] },
+      { name: "caption", label: "Legenda", type: "textarea", value: p.caption, full: true },
+      { name: "link", label: "Arquivo (Drive, Canva…)", type: "url", value: p.link, full: true, placeholder: "https://" },
+      { name: "published_url", label: "Link do post publicado", type: "url", value: p.published_url, full: true, showIf: "status=publicado" },
+      { name: "notes", label: "Observações", type: "textarea", value: p.notes, full: true, placeholder: "Pedido do cliente, ajustes, referências…" }
+    ]
+  });
+  if (!r) return;
+  if (r.__danger) {
+    if (await confirmModal(`Excluir o post "${p.title}"?`)) return ctx.run(() => ctx.store.remove("posts", p.id), "Post excluído", ["posts"]);
+    return;
+  }
+  return ctx.run(() => p.id ? ctx.store.update("posts", p.id, r) : ctx.store.insert("posts", r), p.id ? "Post salvo" : "Post criado", ["posts"]);
+}
+
+export function advancePost(ctx, p) {
+  const n = nextStatus(p.status);
+  if (!n) return;
+  return ctx.run(() => ctx.store.update("posts", p.id, { status: n }), `${p.title}: ${label(POST_STATUS, n)}`, ["posts"]);
+}
+
+// Planejar várias semanas de uma vez para um cliente
+export async function planForm(ctx, preset = {}) {
+  const days = [["1", "Seg"], ["2", "Ter"], ["3", "Qua"], ["4", "Qui"], ["5", "Sex"], ["6", "Sáb"], ["7", "Dom"]];
+  const r = await formModal({
+    title: "Planejar semanas",
+    submit: "Criar posts",
+    fields: [
+      { name: "client_id", label: "Cliente", type: "select", required: true, options: postClientOpts(ctx), value: preset.client_id || "", full: true },
+      ...days.map(([v, l]) => ({ name: "d" + v, label: l, type: "checkbox", value: ["1", "3", "5"].includes(v) })),
+      { name: "start", label: "A partir de", type: "date", required: true, value: preset.start || todayISO() },
+      { name: "weeks", label: "Quantas semanas", type: "number", step: "1", value: 4 },
+      { name: "time", label: "Horário", type: "time", value: "18:00" },
+      { name: "channel", label: "Rede", type: "select", options: opts(CHANNELS), value: "Instagram" },
+      { name: "format", label: "Formato", type: "select", options: opts(FORMATS), value: "Reels" },
+      { name: "owner", label: "Responsável", type: "select", options: opts(PEOPLE), value: PEOPLE[0] },
+      { name: "title", label: "Tema (opcional)", value: "", full: true, hint: "Se ficar vazio, os posts entram como \"Post\" para vocês definirem o tema depois" }
+    ]
+  });
+  if (!r) return;
+  const chosen = days.filter(([v]) => r["d" + v]).map(([v]) => Number(v));
+  if (!chosen.length) { toast("Escolha pelo menos um dia da semana.", "erro"); return planForm(ctx, { client_id: r.client_id, start: r.start }) }
+  const weeks = Math.min(Math.max(1, r.weeks || 1), 12);
+  const iso = d => { const x = new Date(d + "T12:00").getDay(); return x === 0 ? 7 : x };
+  const rows = [];
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = addDays(r.start, i);
+    if (chosen.includes(iso(d))) rows.push({ client_id: r.client_id, date: d, time: r.time, channel: r.channel, format: r.format, owner: r.owner, status: "ideia", title: r.title || "Post" });
+  }
+  const exists = new Set(ctx.db.posts.filter(p => p.client_id === r.client_id).map(p => p.date + "|" + p.format));
+  const fresh = rows.filter(x => !exists.has(x.date + "|" + x.format));
+  if (!fresh.length) return toast("Esses posts já estão no calendário.");
+  return ctx.run(() => ctx.store.insert("posts", fresh), `${fresh.length} posts criados`, ["posts"]);
 }

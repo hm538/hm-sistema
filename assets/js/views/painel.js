@@ -1,7 +1,7 @@
 // Painel: resumo do mês, alertas e próximos compromissos.
 import { PEOPLE } from "../config.js";
 import { esc, icon, money, todayISO, toISO, fmtDate, fmtDateLong, fmtTime, fmtHours, monthName, daysFrom, addDays } from "../ui.js";
-import { clientForm, projectForm, txForm, eventForm, goalForm, togglePaid, projectMinutes, label, KINDS } from "./common.js";
+import { clientForm, projectForm, txForm, eventForm, goalForm, postForm, togglePaid, projectMinutes, label, KINDS, POST_STATUS } from "./common.js";
 
 export default function painel(el, ctx) {
   const { db } = ctx;
@@ -29,6 +29,8 @@ export default function painel(el, ctx) {
       .map(e => ({ when: toISO(new Date(e.start_at)) + "T" + new Date(e.start_at).toTimeString().slice(0, 5), date: toISO(new Date(e.start_at)), kind: label(KINDS, e.kind), title: e.title, sub: [fmtTime(e.start_at), e.person !== "Todos" ? e.person : "", ctx.clientLabel(e.client_id)].filter(Boolean).join(" · "), open: () => eventForm(ctx, e) })),
     ...open.filter(p => p.due_date && p.due_date >= today && p.due_date <= limit)
       .map(p => ({ when: p.due_date + "T23:00", date: p.due_date, kind: "Prazo", title: p.title, sub: [p.owner, ctx.clientLabel(p.client_id)].filter(Boolean).join(" · "), open: () => projectForm(ctx, p) })),
+    ...db.posts.filter(p => p.status !== "publicado" && p.date >= today && p.date <= limit)
+      .map(p => ({ when: p.date + "T" + (p.time || "20:00"), date: p.date, kind: "Post", title: `${ctx.clientLabel(p.client_id)} · ${p.title}`, sub: [p.format, p.time, label(POST_STATUS, p.status)].filter(Boolean).join(" · "), open: () => postForm(ctx, p) })),
     ...db.transactions.filter(t => !t.paid && t.due_date >= today && t.due_date <= limit)
       .map(t => ({ when: t.due_date + "T22:00", date: t.due_date, kind: t.type === "entrada" ? "A receber" : "A pagar", title: t.description, sub: money(t.amount), open: () => txForm(ctx, t) }))
   ].sort((a, b) => a.when.localeCompare(b.when));
@@ -61,6 +63,7 @@ export default function painel(el, ctx) {
     ...lateIn.map(t => ({ tone: "bad", text: `Recebimento atrasado: ${t.description} (${money(t.amount)}), venceu ${fmtDate(t.due_date)}`, act: "Recebido", fn: () => togglePaid(ctx, t) })),
     ...lateOut.map(t => ({ tone: "warn", text: `Conta atrasada: ${t.description} (${money(t.amount)}), venceu ${fmtDate(t.due_date)}`, act: "Paguei", fn: () => togglePaid(ctx, t) })),
     ...lateProjects.map(p => ({ tone: "bad", text: `Trabalho atrasado: ${p.title}${p.client_id ? " · " + ctx.clientLabel(p.client_id) : ""} (prazo ${fmtDate(p.due_date)}, ${-daysFrom(p.due_date)} dia(s))`, act: "Abrir", fn: () => projectForm(ctx, p) })),
+    ...db.posts.filter(p => p.date < today && p.status !== "publicado").map(p => ({ tone: "warn", text: `Post atrasado: ${ctx.clientLabel(p.client_id)} · ${p.title} (${fmtDate(p.date)}, ${label(POST_STATUS, p.status)})`, act: "Abrir", fn: () => postForm(ctx, p) })),
     ...overHours.map(p => ({ tone: "warn", text: `${p.title} passou das horas estimadas: ${fmtHours(projectMinutes(ctx, p.id))} de ${fmtHours(p.hours_estimated * 60)}`, act: "Ver", fn: () => ctx.go("trabalhos") }))
   ];
 

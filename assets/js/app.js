@@ -6,13 +6,15 @@ import clientes from "./views/clientes.js";
 import trabalhos from "./views/trabalhos.js";
 import financeiro from "./views/financeiro.js";
 import agenda from "./views/agenda.js";
+import conteudo from "./views/conteudo.js";
 
 const ROUTES = {
   painel: { label: "Painel", icon: "home", view: painel },
   clientes: { label: "Clientes", icon: "users", view: clientes },
   trabalhos: { label: "Trabalhos", icon: "briefcase", view: trabalhos },
   financeiro: { label: "Financeiro", icon: "wallet", view: financeiro },
-  agenda: { label: "Agenda", icon: "calendar", view: agenda }
+  agenda: { label: "Agenda", icon: "calendar", view: agenda },
+  conteudo: { label: "Conteúdo", icon: "image", view: conteudo }
 };
 
 const db = Object.fromEntries(TABLES.map(t => [t, []]));

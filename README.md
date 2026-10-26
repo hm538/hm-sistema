@@ -1,6 +1,6 @@
 # HM Sistema
 
-Sistema interno da HM Digital: clientes (CRM), trabalhos com horas estimadas x gastas, financeiro (entradas, saídas e mensalidades) e agenda.
+Sistema interno da HM Digital: clientes (CRM), trabalhos com horas estimadas x gastas, financeiro (entradas, saídas e mensalidades), agenda e calendário de postagens.
 
 Site estático (HTML + JavaScript, sem build) com dados e login no **Supabase**.
 
@@ -13,6 +13,7 @@ Site estático (HTML + JavaScript, sem build) com dados e login no **Supabase**.
 | Trabalhos | Status, prazo, responsável, horas estimadas x gastas (cronômetro ou à mão), recebido, gastos, lucro e valor por hora |
 | Financeiro | **Gerar cobranças do mês** para todos os clientes fixos; lançamentos com previsto x realizado; repetição semanal, quinzenal ou mensal; atrasados, últimos 6 meses e gastos por categoria |
 | Agenda | Visões de dia, semana e mês; compromissos lado a lado na linha do tempo, cor por pessoa, local com botão de mapa, aviso de conflito ou pouco tempo de deslocamento; prazos; **entradas e saídas** (pagas no dia do pagamento, com a forma de pagamento; pendentes no vencimento) e total do dia |
+| Conteúdo | Calendário de postagens dos clientes: visão **Semana** e **Quadro** por etapa (Ideia → Em produção → Aprovação do cliente → Agendado → Publicado), botão de avançar etapa, filtros por cliente e responsável, **Planejar semanas** (cria a rotina de posts de um cliente de uma vez) e aviso de posts atrasados |
 
 ## Configurar o Supabase (uma vez)
 

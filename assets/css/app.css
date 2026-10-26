@@ -148,7 +148,7 @@ h2 { margin: 0 0 12px; font: 700 14px var(--body); color: var(--ice); display: f
   border-left: 3px solid var(--electric);
 }
 .agenda-list button:hover { background: var(--panel-2) }
-.agenda-list .when { font: 500 12px var(--mono); color: var(--muted); text-transform: capitalize }
+.agenda-list .when { font: 500 12px var(--mono); color: var(--muted) }
 .agenda-list .what b { display: block; font-weight: 600; overflow-wrap: anywhere }
 .agenda-list .what small { color: var(--muted) }
 .agenda-list .c-due { border-left-color: var(--warn) }
@@ -296,14 +296,14 @@ i.more { color: var(--muted) }
 .tg-card { padding: 12px; overflow-x: auto }
 .tg { min-width: 760px; --gutter: 52px }
 .warn-box { border-radius: 14px; background: rgba(255,193,94,.07); border: 1px solid rgba(255,193,94,.3) }
-.warn-box summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 14px; cursor: pointer; color: #ffe2b0; font-size: 13.5px }
-.warn-box summary svg { color: var(--warn) }
-.warn-box summary span { color: var(--muted); font-size: 12.5px }
+.warn-box .wb-head, .warn-box summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 14px; cursor: pointer; color: #ffe2b0; font-size: 13.5px }
+.warn-box .wb-head svg, .warn-box summary svg { color: var(--warn) }
+.warn-box .wb-head span, .warn-box summary span { color: var(--muted); font-size: 12.5px }
 .warn-box ul { margin: 0; padding: 0 14px 12px 40px; display: grid; gap: 6px; font-size: 13px; color: #f3e4c6 }
 .tg.wide { min-width: 0 }
 .tg-head, .tg-all { display: grid; grid-template-columns: var(--tpl); gap: 4px }
 .tg-head { padding-bottom: 6px }
-.tg-day { border: 0; background: transparent; color: var(--muted); font: 600 12px var(--body); text-transform: capitalize; padding: 6px 2px; border-radius: 8px }
+.tg-day { border: 0; background: transparent; color: var(--muted); font: 600 12px var(--body); padding: 6px 2px; border-radius: 8px }
 .tg-day:hover { background: var(--panel-2); color: var(--text) }
 .tg-day.today { color: var(--navy); background: var(--ice) }
 .tg-all { padding: 6px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line) }
@@ -357,6 +357,46 @@ i.c-in.ok { background: rgba(62,224,143,.35); color: #eafff4 } i.c-out.ok { back
 .week-list { display: grid; gap: 12px }
 .day .chips i.c-ev { background: color-mix(in srgb, var(--pc, #4c8dff) 25%, transparent); color: #dfe8fb }
 
+/* ---------- conteúdo (postagens) ---------- */
+.st-ideia { --sc: #93a0b8 } .st-producao { --sc: #8fb6ff } .st-aprovacao { --sc: #ffc15e } .st-agendado { --sc: #b57cff } .st-publicado { --sc: #3ee08f }
+.sel select { padding: 7px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-weight: 600; font-size: 13px }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
+.post-sum { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted) }
+.post-sum span { display: inline-flex; align-items: center; gap: 6px }
+.post-sum i, .post-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--sc); display: inline-block }
+.post-sum b { color: var(--text) }
+.week-board { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: start }
+.wcol { display: grid; gap: 6px; padding: 8px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); min-width: 0; min-height: 120px; align-content: start }
+.wcol.today { border-color: var(--electric); background: #0b1430 }
+.wcol header { display: flex; justify-content: space-between; align-items: center; gap: 4px; font: 600 12px var(--body); color: var(--muted) }
+.wcol header span::first-letter, .post-date::first-letter, .tg-day::first-letter, .agenda-list .when::first-letter { text-transform: uppercase }
+.wcol.today header { color: var(--ice) }
+.icon-btn.sm { width: 26px; height: 26px; border-radius: 8px }
+.icon-btn.sm svg.i { width: 14px; height: 14px }
+.wcol-empty { border: 1px dashed var(--line-2); background: transparent; color: var(--muted); border-radius: 10px; padding: 10px 4px; font-size: 12px }
+.wcol-empty:hover { color: var(--ice); border-color: var(--electric) }
+.post { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; border-radius: 11px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--sc); overflow: hidden }
+.post.is-late { border-color: rgba(255,122,122,.45); border-left-color: var(--neg) }
+.post-main { display: grid; gap: 2px; text-align: left; padding: 8px 6px 8px 9px; border: 0; background: transparent; min-width: 0 }
+.post-main:hover { background: var(--panel-2) }
+.post-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 6px; font-size: 11px; color: var(--muted) }
+.post-top b { color: var(--ice); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.post-top em { font-style: normal; font-family: var(--mono) }
+.post-date { font: 600 10.5px var(--mono); color: var(--muted) }
+.post-title { font-weight: 700; font-size: 13px; line-height: 1.3; overflow-wrap: anywhere }
+.post-meta { font-size: 11px; color: var(--muted) }
+.post-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--sc) }
+.post.is-late .post-status { color: var(--neg) }
+.post-next { border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--muted); padding: 0 6px }
+.post-next:hover { background: color-mix(in srgb, var(--sc) 20%, transparent); color: var(--text) }
+.post-next svg.i { width: 15px; height: 15px }
+.kanban { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 6px; align-items: start }
+.kcol { display: grid; gap: 8px; padding: 10px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); border-top: 3px solid var(--sc); align-content: start }
+.kcol header { display: flex; justify-content: space-between; font: 700 13px var(--body) }
+.kcol header b { color: var(--muted) }
+.empty.sm { font-size: 12.5px; margin: 0 }
+.link-btn { border: 0; background: none; color: inherit; padding: 0; text-align: left; text-decoration: underline; text-decoration-color: rgba(255,226,176,.4); cursor: pointer }
+
 /* ---------- modal ---------- */
 #modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px }
 .modal-back { position: absolute; inset: 0; background: rgba(2,4,10,.72); backdrop-filter: blur(4px) }
@@ -409,15 +449,17 @@ i.c-in.ok { background: rgba(62,224,143,.35); color: #eafff4 } i.c-out.ok { back
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
   .demo-bar { padding: 10px 16px }
   .tabbar {
-    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
     background: rgba(8,13,26,.96); backdrop-filter: blur(10px); border-top: 1px solid var(--line);
     padding: 6px max(6px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));
   }
-  .tabbar a { display: grid; justify-items: center; gap: 3px; padding: 6px 2px; border-radius: 10px; font-size: 10.5px; font-weight: 600; color: var(--muted) }
+  .tabbar a { display: grid; justify-items: center; gap: 3px; padding: 6px 1px; border-radius: 10px; font-size: 9.5px; font-weight: 600; color: var(--muted) }
   .tabbar a.on { color: var(--ice); background: var(--panel-2) }
   .two, .cal-wrap, .day-view { grid-template-columns: minmax(0, 1fr) }
   .tg.wide .tg-head { display: none }
   .day-view > :last-child { order: -1 }
+  .week-board { grid-template-columns: minmax(0, 1fr) }
+  .wcol { min-height: 0 }
   .funnel { grid-template-columns: repeat(3, minmax(0, 1fr)) }
   .cards { grid-template-columns: minmax(0, 1fr) }
   .day { min-height: 54px; padding: 4px }

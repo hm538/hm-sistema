@@ -104,6 +104,26 @@ alter table transactions add column if not exists notes text;
 alter table projects drop constraint if exists projects_billing_check;
 alter table projects add constraint projects_billing_check check (billing in ('fechado', 'semanal', 'quinzenal', 'mensal'));
 
+-- Calendário de postagens
+create table if not exists posts (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid references clients(id) on delete cascade,
+  date date not null,
+  time text,                       -- "18:30"
+  channel text,                    -- Instagram, TikTok…
+  format text,                     -- Reels, Carrossel…
+  title text not null,             -- tema do post
+  caption text,                    -- legenda
+  status text not null default 'ideia'
+    check (status in ('ideia', 'producao', 'aprovacao', 'agendado', 'publicado')),
+  owner text,                      -- responsável
+  link text,                       -- arquivo (Drive, Canva…)
+  published_url text,              -- link do post publicado
+  notes text,
+  created_at timestamptz not null default now()
+);
+create index if not exists posts_date_idx on posts(date);
+
 create index if not exists projects_client_idx on projects(client_id);
 create index if not exists time_entries_project_idx on time_entries(project_id);
 create index if not exists transactions_due_idx on transactions(due_date);
@@ -115,7 +135,7 @@ create index if not exists events_start_idx on events(start_at);
 do $$
 declare t text;
 begin
-  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals'] loop
+  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals', 'posts'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "equipe HM" on %I', t);
     execute format('create policy "equipe HM" on %I for all to authenticated using (true) with check (true)', t);
