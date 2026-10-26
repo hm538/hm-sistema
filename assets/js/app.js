@@ -18,6 +18,9 @@ const ROUTES = {
 };
 
 const db = Object.fromEntries(TABLES.map(t => [t, []]));
+const OPTIONAL = ["goals", "posts"];
+const OPTIONAL_LABEL = { goals: "Metas", posts: "Conteúdo (postagens)" };
+const warned = new Set();
 const app = document.getElementById("app");
 let current = null;
 let userEmail = "";
@@ -26,7 +29,15 @@ const ctx = {
   db, store,
   // Recarrega tabelas do banco e redesenha a tela atual
   async reload(tables = TABLES) {
-    await Promise.all(tables.map(async t => { db[t] = await store.list(t) }));
+    await Promise.all(tables.map(async t => {
+      try { db[t] = await store.list(t) }
+      catch (e) {
+        // Tabelas novas ainda não criadas no banco não podem travar o sistema inteiro
+        if (!OPTIONAL.includes(t)) throw e;
+        db[t] = [];
+        if (!warned.has(t)) { warned.add(t); toast(`Rode o arquivo supabase/schema.sql no Supabase para ativar: ${OPTIONAL_LABEL[t]}.`, "erro") }
+      }
+    }));
     render();
   },
   // Executa uma alteração no banco com aviso de erro
