@@ -24,5 +24,5 @@ export const METHODS = ["Pix", "Dinheiro", "Cartão de crédito", "Cartão de d�
 // Categorias do financeiro
 export const CATEGORIES = {
   entrada: ["Pagamento semanal", "Pagamento quinzenal", "Mensalidade", "Projeto", "Outro"],
-  saida: ["Ferramentas e assinaturas", "Anúncios", "Equipe e freelancers", "Impostos", "Equipamentos", "Pró-labore", "Outro"]
+  saida: ["Aluguel e contas", "Ferramentas e assinaturas", "Anúncios", "Equipe e freelancers", "Impostos", "Equipamentos", "Pró-labore", "Outro"]
 };

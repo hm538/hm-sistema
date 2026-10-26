@@ -1,7 +1,7 @@
 // Acesso aos dados. Mesma interface para o Supabase e para o modo demonstração.
 import { SUPABASE } from "./config.js";
 
-export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals", "posts"];
+export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals", "posts", "bills"];
 export const demo = !SUPABASE.url;
 
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now());
@@ -93,6 +93,11 @@ function seed() {
       { id: uuid(), type: "entrada", description: "Cardápio digital (50%)", amount: 600, category: "Projeto", client_id: c1, project_id: p2, due_date: d(-1), paid: false, created_at: ts },
       { id: uuid(), type: "saida", description: "Ferramenta de design", amount: 89.9, category: "Ferramentas e assinaturas", due_date: d(-6), paid: true, paid_date: d(-6), created_at: ts },
       { id: uuid(), type: "saida", description: "Anúncios", amount: 300, category: "Anúncios", project_id: p1, due_date: d(5), paid: false, created_at: ts }
+    ],
+    bills: [
+      { id: uuid(), name: "Aluguel do escritório", category: "Aluguel e contas", amount: 1500, freq: "mensal", due_day: 5, variable: false, active: true, method: "Pix", created_at: ts },
+      { id: uuid(), name: "Energia", category: "Aluguel e contas", amount: 250, freq: "mensal", due_day: 12, variable: true, active: true, method: "Boleto", created_at: ts },
+      { id: uuid(), name: "Internet", category: "Aluguel e contas", amount: 120, freq: "mensal", due_day: 20, variable: false, active: true, method: "Cartão de crédito", created_at: ts }
     ],
     posts: [
       { id: uuid(), client_id: c1, date: d(-1), time: "18:00", channel: "Instagram", format: "Reels", title: "Bastidores da cozinha", status: "aprovacao", owner: "Mariana", created_at: ts },

@@ -18,8 +18,8 @@ const ROUTES = {
 };
 
 const db = Object.fromEntries(TABLES.map(t => [t, []]));
-const OPTIONAL = ["goals", "posts"];
-const OPTIONAL_LABEL = { goals: "Metas", posts: "Conteúdo (postagens)" };
+const OPTIONAL = ["goals", "posts", "bills"];
+const OPTIONAL_LABEL = { goals: "Metas", posts: "Conteúdo (postagens)", bills: "Contas fixas" };
 const warned = new Set();
 const app = document.getElementById("app");
 let current = null;

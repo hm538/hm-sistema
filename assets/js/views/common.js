@@ -43,6 +43,69 @@ export function chargeDates(ctx, c, ym) {
 }
 
 // Cria as cobranças do mês para todos os clientes fixos, sem duplicar as que já existem
+// ---------- Contas fixas ----------
+// Datas de vencimento de uma conta fixa dentro de um mês ("AAAA-MM")
+export function billDates(b, ym) {
+  const [y, m] = ym.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  if (b.freq === "semanal") {
+    return Array.from({ length: last }, (_, i) => `${ym}-${String(i + 1).padStart(2, "0")}`).filter(d => isoWeekday(d) === Number(b.due_day));
+  }
+  return [`${ym}-${String(Math.min(Number(b.due_day) || 1, last)).padStart(2, "0")}`];
+}
+const billRows = (ctx, b, ym) => billDates(b, ym)
+  .filter(due => !ctx.db.transactions.some(t => t.bill_id === b.id && t.due_date === due))
+  .map(due => ({
+    type: "saida", amount: b.amount, due_date: due, paid: false, paid_date: null, method: b.method || null,
+    description: b.name, category: b.category || "Aluguel e contas", bill_id: b.id,
+    notes: b.variable ? "Valor estimado: confira na hora de pagar" : null
+  }));
+const monthsFrom = (ym, n) => Array.from({ length: n }, (_, i) => { const [y, m] = ym.split("-").map(Number); const d = new Date(y, m - 1 + i, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` });
+
+export async function billForm(ctx, b = {}) {
+  const r = await formModal({
+    title: b.id ? "Editar conta fixa" : "Nova conta fixa",
+    danger: b.id ? "Excluir" : null,
+    fields: [
+      { name: "name", label: "Nome", required: true, value: b.name, placeholder: "Ex.: Aluguel, Energia, Água, Internet", full: true },
+      { name: "amount", label: "Valor (R$)", type: "number", step: "0.01", required: true, value: b.amount, hint: "Se varia, coloque uma média" },
+      { name: "category", label: "Categoria", type: "select", options: opts(CATEGORIES.saida), value: b.category || "Aluguel e contas" },
+      { name: "freq", label: "Frequência", type: "select", options: [["mensal", "Todo mês"], ["semanal", "Toda semana"]], value: b.freq || "mensal" },
+      { name: "due_day", label: "Dia do vencimento", type: "number", step: "1", value: b.due_day || 10, showIf: "freq=mensal", hint: "Dia do mês (1 a 31)" },
+      { name: "due_wd", label: "Dia da semana", type: "select", options: WEEKDAYS, value: b.freq === "semanal" ? b.due_day : 1, showIf: "freq=semanal" },
+      { name: "method", label: "Forma de pagamento", type: "select", options: [["", "—"], ...opts(METHODS)], value: b.method || "" },
+      { name: "variable", label: "O valor muda todo mês (água, luz…)", type: "checkbox", value: b.variable || false, full: true },
+      { name: "active", label: "Conta ativa", type: "checkbox", value: b.active ?? true, full: true },
+      { name: "notes", label: "Observação", type: "textarea", value: b.notes, full: true }
+    ]
+  });
+  if (!r) return;
+  if (r.__danger) {
+    if (!(await confirmModal(`Excluir a conta fixa "${b.name}"? As contas futuras ainda não pagas também serão apagadas; as já pagas ficam.`))) return;
+    const future = ctx.db.transactions.filter(t => t.bill_id === b.id && !t.paid).map(t => t.id);
+    return ctx.run(async () => { for (const id of future) await ctx.store.remove("transactions", id); await ctx.store.remove("bills", b.id) }, "Conta fixa excluída", ["bills", "transactions"]);
+  }
+  const { due_wd, ...row } = r;
+  row.due_day = row.freq === "semanal" ? Number(due_wd) : Math.min(31, Math.max(1, Number(row.due_day) || 1));
+  row.method = row.method || null;
+  if (b.id) {
+    // Atualiza também as contas futuras ainda não pagas
+    const future = ctx.db.transactions.filter(t => t.bill_id === b.id && !t.paid && t.due_date >= todayISO());
+    return ctx.run(async () => {
+      await ctx.store.update("bills", b.id, row);
+      for (const t of future) await ctx.store.update("transactions", t.id, { amount: row.amount, description: row.name, category: row.category, method: row.method });
+    }, "Conta fixa salva", ["bills", "transactions"]);
+  }
+  // Nova conta: já lança este mês (a partir de hoje) e os 2 próximos
+  return ctx.run(async () => {
+    const [created] = await ctx.store.insert("bills", row);
+    const today = todayISO();
+    const rows = monthsFrom(today.slice(0, 7), 3).flatMap(ym => billRows({ db: { transactions: [] } }, created, ym)).filter(x => x.due_date >= today);
+    if (rows.length && created.active) await ctx.store.insert("transactions", rows);
+  }, "Conta fixa cadastrada e lançada nos próximos meses", ["bills", "transactions"]);
+}
+
+// Cria os lançamentos do mês: cobranças dos clientes fixos + contas fixas, sem duplicar
 export async function generateCharges(ctx, ym) {
   const rows = [];
   ctx.db.clients.filter(isFixed).forEach(c => {
@@ -56,12 +119,16 @@ export async function generateCharges(ctx, ym) {
       });
     });
   });
-  const fixed = ctx.db.clients.filter(isFixed);
-  if (!fixed.length) return toast("Nenhum cliente fixo. Preencha valor, frequência e dia do pagamento no cadastro do cliente (etapa Ativo).", "erro");
-  if (!rows.length) return toast("As cobranças deste mês já estão todas lançadas.");
-  const total = rows.reduce((s, r) => s + Number(r.amount), 0);
-  const ok = await confirmModal(`Criar ${rows.length} cobrança(s) de ${new Set(rows.map(r => r.client_id)).size} cliente(s), somando ${money(total)}?`, "Criar cobranças");
-  if (ok) return ctx.run(() => ctx.store.insert("transactions", rows), `${rows.length} cobranças criadas`, ["transactions"]);
+  const ins = rows.length;
+  (ctx.db.bills || []).filter(b => b.active).forEach(b => rows.push(...billRows(ctx, b, ym)));
+  const outs = rows.length - ins;
+  if (!ctx.db.clients.some(isFixed) && !(ctx.db.bills || []).some(b => b.active))
+    return toast("Nada para gerar: cadastre o valor e o dia de pagamento dos clientes, ou as contas fixas.", "erro");
+  if (!rows.length) return toast("Os lançamentos deste mês já estão todos criados.");
+  const sum = arr => arr.reduce((s, r) => s + Number(r.amount), 0);
+  const parts = [ins && `${ins} cobrança(s) de clientes (${money(sum(rows.slice(0, ins)))})`, outs && `${outs} conta(s) fixa(s) (${money(sum(rows.slice(ins)))})`].filter(Boolean);
+  const ok = await confirmModal(`Criar ${parts.join(" e ")}?`, "Criar lançamentos");
+  if (ok) return ctx.run(() => ctx.store.insert("transactions", rows), `${rows.length} lançamentos criados`, ["transactions"]);
 }
 
 // "Recebi": marca como paga a cobrança pendente mais antiga até esta semana; se não houver, registra na hora

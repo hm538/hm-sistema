@@ -1,6 +1,6 @@
 // Financeiro: entradas e saídas do mês, previsto x realizado, atrasados e gastos por categoria.
-import { esc, icon, money, fmtDate, monthName, todayISO } from "../ui.js";
-import { txForm, togglePaid, generateCharges } from "./common.js";
+import { esc, icon, money, fmtDate, monthName, todayISO, addDays } from "../ui.js";
+import { txForm, togglePaid, generateCharges, billForm, WEEKDAYS, label } from "./common.js";
 
 let ym = null;          // "AAAA-MM" do mês aberto
 let kind = "todos";     // todos | entrada | saida | pendentes
@@ -31,6 +31,11 @@ export default function financeiro(el, ctx) {
     .sort((a, b) => b[1] - a[1]);
   const catMax = Math.max(1, ...cats.map(c => c[1]));
 
+  const bills = [...(db.bills || [])].sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name));
+  const monthlyFixed = bills.filter(b => b.active).reduce((s, b) => s + Number(b.amount) * (b.freq === "semanal" ? 52 / 12 : 1), 0);
+  const upcoming = db.transactions.filter(t => t.type === "saida" && !t.paid && t.due_date >= today && t.due_date <= addDays(today, 30))
+    .sort((a, b) => a.due_date.localeCompare(b.due_date));
+
   const row = t => {
     const overdue = !t.paid && t.due_date < today;
     const who = [ctx.clientLabel(t.client_id), ctx.project(t.project_id)?.title].filter(Boolean).join(" · ");
@@ -55,7 +60,7 @@ export default function financeiro(el, ctx) {
         </div>
       </div>
       <div class="quick">
-        <button class="btn sm" data-gen>${icon("repeat")}Gerar cobranças do mês</button>
+        <button class="btn sm" data-gen>${icon("repeat")}Gerar lançamentos do mês</button>
         <button class="btn sm" data-new="saida">${icon("down")}Saída</button>
         <button class="btn primary" data-new="entrada">${icon("up")}Entrada</button>
       </div>
@@ -82,6 +87,24 @@ export default function financeiro(el, ctx) {
 
     <div class="two">
       <section class="card">
+        <div class="card-head"><h2>Próximas contas a pagar</h2><span class="muted-s">30 dias</span></div>
+        ${upcoming.length ? `<ul class="tx-list">${upcoming.map(row).join("")}</ul><p class="muted">Total: <b class="neg">${money(sum(upcoming))}</b></p>`
+          : `<p class="empty">Nenhuma conta a pagar nos próximos 30 dias.</p>`}
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>Contas fixas</h2><button class="btn sm" data-bill-new>${icon("plus")}Conta fixa</button></div>
+        ${bills.length ? `<ul class="bill-list">${bills.map(b => `
+          <li><button data-bill="${b.id}" class="${b.active ? "" : "off"}">
+            <span class="min0"><b>${esc(b.name)}</b><small>${esc(b.freq === "semanal" ? `Toda ${label(WEEKDAYS, Number(b.due_day)).toLowerCase()}` : `Todo dia ${b.due_day}`)}${b.method ? " · " + esc(b.method) : ""}${b.active ? "" : " · pausada"}</small></span>
+            <span class="tx-right"><b class="neg">${b.variable ? "~ " : ""}${money(b.amount)}</b><small>${b.variable ? "valor varia" : b.freq === "semanal" ? "por semana" : "por mês"}</small></span>
+          </button></li>`).join("")}</ul>
+          <p class="muted">Total fixo por mês: <b>${money(monthlyFixed)}</b>. Use <b>Gerar lançamentos do mês</b> para lançar as contas de cada mês.</p>`
+          : `<p class="empty">Cadastre aluguel, água, luz, internet e assinaturas uma vez. O sistema lança as contas de cada mês para vocês.</p>`}
+      </section>
+    </div>
+
+    <div class="two">
+      <section class="card">
         <h2>Últimos 6 meses</h2>
         <div class="chart" role="img" aria-label="Entradas e saídas recebidas e pagas nos últimos 6 meses">
           ${hist.map(h => `<div class="col ${h.k === ym ? "cur" : ""}">
@@ -103,6 +126,8 @@ export default function financeiro(el, ctx) {
   el.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { kind = b.dataset.kind; financeiro(el, ctx) });
   el.querySelectorAll("[data-new]").forEach(b => b.onclick = () => txForm(ctx, {}, { type: b.dataset.new, due_date: ym === today.slice(0, 7) ? today : ym + "-01" }));
   el.querySelector("[data-gen]").onclick = () => generateCharges(ctx, ym);
+  el.querySelector("[data-bill-new]").onclick = () => billForm(ctx);
+  el.querySelectorAll("[data-bill]").forEach(b => b.onclick = () => billForm(ctx, bills.find(x => x.id === b.dataset.bill)));
   el.querySelectorAll("[data-paid]").forEach(b => b.onclick = () => togglePaid(ctx, byId(b.dataset.paid)));
   el.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => txForm(ctx, byId(b.dataset.edit)));
 }

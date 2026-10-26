@@ -104,6 +104,22 @@ alter table transactions add column if not exists notes text;
 alter table projects drop constraint if exists projects_billing_check;
 alter table projects add constraint projects_billing_check check (billing in ('fechado', 'semanal', 'quinzenal', 'mensal'));
 
+-- Contas fixas (aluguel, água, luz…): geram as saídas de cada mês
+create table if not exists bills (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text,
+  amount numeric(12, 2) not null default 0,   -- valor (ou estimativa, se variável)
+  freq text not null default 'mensal' check (freq in ('mensal', 'semanal')),
+  due_day smallint not null default 10,       -- dia do mês (mensal) ou dia da semana 1-7 (semanal)
+  variable boolean not null default false,    -- valor muda todo mês (água, luz)
+  active boolean not null default true,
+  method text,                                -- forma de pagamento de costume
+  notes text,
+  created_at timestamptz not null default now()
+);
+alter table transactions add column if not exists bill_id uuid references bills(id) on delete set null;
+
 -- Calendário de postagens
 create table if not exists posts (
   id uuid primary key default gen_random_uuid(),
@@ -135,7 +151,7 @@ create index if not exists events_start_idx on events(start_at);
 do $$
 declare t text;
 begin
-  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals', 'posts'] loop
+  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals', 'posts', 'bills'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "equipe HM" on %I', t);
     execute format('create policy "equipe HM" on %I for all to authenticated using (true) with check (true)', t);

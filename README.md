@@ -11,7 +11,7 @@ Site estático (HTML + JavaScript, sem build) com dados e login no **Supabase**.
 | Painel | Metas do mês (faturamento, lucro, clientes novos, trabalhos entregues) com ritmo; recebido, gasto e saldo do mês; a receber e a pagar; alertas de atrasos; próximos 7 dias; horas por pessoa |
 | Clientes | Funil por etapa, busca, WhatsApp e Instagram; valor fixo e dia do pagamento (semanal, quinzenal ou mensal); semanas pagas no mês; botão **Recebi** |
 | Trabalhos | Status, prazo, responsável, horas estimadas x gastas (cronômetro ou à mão), recebido, gastos, lucro e valor por hora |
-| Financeiro | **Gerar cobranças do mês** para todos os clientes fixos; lançamentos com previsto x realizado; repetição semanal, quinzenal ou mensal; atrasados, últimos 6 meses e gastos por categoria |
+| Financeiro | **Contas fixas** (aluguel, água, luz, internet…: mensais ou semanais, com valor fixo ou variável); **Gerar lançamentos do mês** cria as cobranças dos clientes fixos e as contas fixas; próximas contas a pagar (30 dias); lançamentos com previsto x realizado; repetição semanal, quinzenal ou mensal; atrasados, últimos 6 meses e gastos por categoria |
 | Agenda | Visões de dia, semana e mês; compromissos lado a lado na linha do tempo, cor por pessoa, local com botão de mapa, aviso de conflito ou pouco tempo de deslocamento; prazos; **entradas e saídas** (pagas no dia do pagamento, com a forma de pagamento; pendentes no vencimento) e total do dia |
 | Conteúdo | Calendário de postagens dos clientes: visão **Semana** e **Quadro** por etapa (Ideia → Em produção → Aprovação do cliente → Agendado → Publicado), botão de avançar etapa, filtros por cliente e responsável, **Planejar semanas** (cria a rotina de posts de um cliente de uma vez) e aviso de posts atrasados |
 
