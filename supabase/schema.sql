@@ -145,15 +145,44 @@ create index if not exists time_entries_project_idx on time_entries(project_id);
 create index if not exists transactions_due_idx on transactions(due_date);
 create index if not exists events_start_idx on events(start_at);
 
--- Segurança: só quem faz login no sistema vê e mexe nos dados.
--- (Desative "Allow new users to sign up" em Authentication → Sign In / Providers
---  e crie os usuários do Neto e da Mariana em Authentication → Users → Add user.)
+-- Etapas do post: o cliente aprova ou pede ajuste pelo Portal do Cliente (hm-portal)
+alter table posts drop constraint if exists posts_status_check;
+alter table posts add constraint posts_status_check
+  check (status in ('ideia', 'producao', 'aprovacao', 'ajuste', 'aprovado', 'agendado', 'publicado'));
+
+-- Segurança: só a EQUIPE vê e mexe nos dados internos.
+-- O mesmo banco também tem logins de clientes (Portal do Cliente). Eles NÃO podem ler
+-- estas tabelas: só acessam os próprios dados pelas funções portal_* (supabase/portal.sql do hm-portal).
+-- Equipe = e-mails da tabela team_members. Para incluir alguém da equipe:
+--   insert into team_members (email) values ('pessoa@exemplo.com');
+-- (Desative "Allow new users to sign up" em Authentication → Sign In / Providers.)
+create table if not exists team_members (
+  email text primary key check (email = lower(email)),
+  created_at timestamptz not null default now()
+);
+-- Na primeira vez, todo usuário que já existe é da equipe (antes do portal só existiam logins da equipe).
+insert into team_members (email)
+  select lower(email) from auth.users
+  where email is not null and (select count(*) from team_members) = 0
+on conflict do nothing;
+alter table team_members enable row level security;
+drop policy if exists "equipe lê equipe" on team_members;
+
+create or replace function is_team() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from team_members where email = lower(auth.jwt() ->> 'email'))
+$$;
+revoke all on function is_team() from public, anon;
+grant execute on function is_team() to authenticated;
+
+create policy "equipe lê equipe" on team_members for select to authenticated using (is_team());
+
 do $$
 declare t text;
 begin
   foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals', 'posts', 'bills'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "equipe HM" on %I', t);
-    execute format('create policy "equipe HM" on %I for all to authenticated using (true) with check (true)', t);
+    execute format('create policy "equipe HM" on %I for all to authenticated using (is_team()) with check (is_team())', t);
   end loop;
 end $$;

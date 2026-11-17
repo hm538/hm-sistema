@@ -376,8 +376,10 @@ export function projectMoney(ctx, id) {
 }
 
 // ---------- Postagens ----------
-export const POST_STATUS = [["ideia", "Ideia"], ["producao", "Em produção"], ["aprovacao", "Aprovação do cliente"], ["agendado", "Agendado"], ["publicado", "Publicado"]];
-export const nextStatus = st => { const i = POST_STATUS.findIndex(([k]) => k === st); return i >= 0 && i < POST_STATUS.length - 1 ? POST_STATUS[i + 1][0] : null };
+export const POST_STATUS = [["ideia", "Ideia"], ["producao", "Em produção"], ["aprovacao", "Aprovação do cliente"], ["ajuste", "Ajuste pedido"], ["aprovado", "Aprovado pelo cliente"], ["agendado", "Agendado"], ["publicado", "Publicado"]];
+// "Ajuste pedido" volta para aprovação; aprovar à mão (ex.: cliente aprovou no WhatsApp) pula o ajuste.
+const NEXT = { ideia: "producao", producao: "aprovacao", aprovacao: "aprovado", ajuste: "aprovacao", aprovado: "agendado", agendado: "publicado" };
+export const nextStatus = st => NEXT[st] || null;
 const activeClients = ctx => ctx.db.clients.filter(c => c.stage !== "encerrado");
 const postClientOpts = ctx => [["", "Escolha o cliente"], ...activeClients(ctx).map(c => [c.id, c.company || c.name])];
 

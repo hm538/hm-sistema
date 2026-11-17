@@ -364,7 +364,7 @@ i.c-in.ok { background: rgba(62,224,143,.35); color: #eafff4 } i.c-out.ok { back
 .day .chips i.c-ev { background: color-mix(in srgb, var(--pc, #4c8dff) 25%, transparent); color: #dfe8fb }
 
 /* ---------- conteúdo (postagens) ---------- */
-.st-ideia { --sc: #93a0b8 } .st-producao { --sc: #8fb6ff } .st-aprovacao { --sc: #ffc15e } .st-agendado { --sc: #b57cff } .st-publicado { --sc: #3ee08f }
+.st-ideia { --sc: #93a0b8 } .st-producao { --sc: #8fb6ff } .st-aprovacao { --sc: #ffc15e } .st-ajuste { --sc: #ff7a7a } .st-aprovado { --sc: #5ee0d0 }.st-agendado { --sc: #b57cff } .st-publicado { --sc: #3ee08f }
 .sel select { padding: 7px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-weight: 600; font-size: 13px }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
 .post-sum { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted) }
@@ -396,7 +396,7 @@ i.c-in.ok { background: rgba(62,224,143,.35); color: #eafff4 } i.c-out.ok { back
 .post-next { border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--muted); padding: 0 6px }
 .post-next:hover { background: color-mix(in srgb, var(--sc) 20%, transparent); color: var(--text) }
 .post-next svg.i { width: 15px; height: 15px }
-.kanban { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 6px; align-items: start }
+.kanban { display: grid; grid-template-columns: repeat(7, minmax(200px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 6px; align-items: start }
 .kcol { display: grid; gap: 8px; padding: 10px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); border-top: 3px solid var(--sc); align-content: start }
 .kcol header { display: flex; justify-content: space-between; font: 700 13px var(--body) }
 .kcol header b { color: var(--muted) }
