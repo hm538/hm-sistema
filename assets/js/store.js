@@ -25,6 +25,7 @@ function supabaseStore() {
     },
     async signOut() { await sb.auth.signOut() },
     async list(table) { return check(await sb.from(table).select("*").order("created_at")) },
+    async dump(table) { return check(await sb.from(table).select("*")) },
     async insert(table, rows) { return check(await sb.from(table).insert(rows).select()) },
     async update(table, id, patch) { return check(await sb.from(table).update(patch).eq("id", id).select()) },
     async remove(table, id) { check(await sb.from(table).delete().eq("id", id)) },
@@ -48,6 +49,7 @@ function localStore() {
     async signIn() {},
     async signOut() { try { localStorage.removeItem(KEY) } catch {} location.reload() },
     async list(table) { return structuredClone(data[table] || []) },
+    async dump(table) { if (!data[table]) throw new Error("sem tabela"); return structuredClone(data[table]) },
     async insert(table, rows) {
       const arr = (Array.isArray(rows) ? rows : [rows]).map(r => ({ id: uuid(), created_at: now(), ...r }));
       data[table].push(...arr); save(); return arr;

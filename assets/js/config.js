@@ -26,3 +26,9 @@ export const CATEGORIES = {
   entrada: ["Pagamento semanal", "Pagamento quinzenal", "Mensalidade", "Projeto", "Outro"],
   saida: ["Aluguel e contas", "Ferramentas e assinaturas", "Anúncios", "Equipe e freelancers", "Impostos", "Equipamentos", "Pró-labore", "Outro"]
 };
+
+// Dados da HM (cobrança, propostas e contratos)
+export const HM = {
+  name: "HM Digital", cnpj: "32.354.551/0001-40", pix: "32354551000140", pixLabel: "CNPJ 32.354.551/0001-40",
+  whatsapp: "5562984134046", whatsappLabel: "(62) 98413-4046", site: "www.hmdigitalgo.com", city: "Goiânia - GO"
+};

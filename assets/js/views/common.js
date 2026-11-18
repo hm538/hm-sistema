@@ -1,5 +1,5 @@
 // Rótulos e formulários compartilhados entre as telas.
-import { PEOPLE, SERVICES, CATEGORIES, METHODS, CHANNELS, FORMATS } from "../config.js";
+import { PEOPLE, SERVICES, CATEGORIES, METHODS, CHANNELS, FORMATS, HM } from "../config.js";
 import { formModal, confirmModal, todayISO, addMonths, addDays, toISO, toast, money } from "../ui.js";
 
 export const STAGES = [
@@ -454,3 +454,18 @@ export async function planForm(ctx, preset = {}) {
   if (!fresh.length) return toast("Esses posts já estão no calendário.");
   return ctx.run(() => ctx.store.insert("posts", fresh), `${fresh.length} posts criados`, ["posts"]);
 }
+
+// ---------- Cobrança pelo WhatsApp ----------
+const waNum = phone => { const d = String(phone || "").replace(/\D/g, ""); return d ? (d.length <= 11 ? "55" + d : d) : "" };
+// Link do WhatsApp com a mensagem pronta (valor, vencimento e Pix). Vazio se o cliente não tem telefone.
+export function chargeLink(ctx, t) {
+  const c = ctx.client(t.client_id);
+  const n = waNum(c?.phone);
+  if (!n || t.type !== "entrada" || t.paid) return "";
+  const first = (c.name || "").split(" ")[0];
+  const d = daysUntil(t.due_date);
+  const when = d < 0 ? `que venceu em ${t.due_date.split("-").reverse().slice(0, 2).join("/")}` : d === 0 ? "que vence hoje" : `que vence em ${t.due_date.split("-").reverse().slice(0, 2).join("/")}`;
+  const msg = `Olá${first ? ", " + first : ""}! Tudo bem? Passando para lembrar do pagamento de ${money(t.amount)} (${t.description}) ${when}.\n\nPix (${HM.pixLabel}): ${HM.pix}\nFavorecido: ${HM.name}\n\nSe já pagou, pode desconsiderar. Obrigado!`;
+  return `https://wa.me/${n}?text=${encodeURIComponent(msg)}`;
+}
+const daysUntil = iso => Math.round((new Date(iso + "T12:00") - new Date(todayISO() + "T12:00")) / 864e5);

@@ -1,6 +1,6 @@
 // Financeiro: entradas e saídas do mês, previsto x realizado, atrasados e gastos por categoria.
 import { esc, icon, money, fmtDate, monthName, todayISO, addDays } from "../ui.js";
-import { txForm, togglePaid, generateCharges, billForm, WEEKDAYS, label } from "./common.js";
+import { txForm, togglePaid, generateCharges, billForm, WEEKDAYS, label, chargeLink } from "./common.js";
 
 let ym = null;          // "AAAA-MM" do mês aberto
 let kind = "todos";     // todos | entrada | saida | pendentes
@@ -39,14 +39,16 @@ export default function financeiro(el, ctx) {
   const row = t => {
     const overdue = !t.paid && t.due_date < today;
     const who = [ctx.clientLabel(t.client_id), ctx.project(t.project_id)?.title].filter(Boolean).join(" · ");
+    const wa = chargeLink(ctx, t);
     return `
-    <li class="tx ${t.type} ${t.paid ? "paid" : ""} ${overdue ? "overdue" : ""}">
+    <li class="tx ${t.type} ${t.paid ? "paid" : ""} ${overdue ? "overdue" : ""} ${wa ? "has-wa" : ""}">
       <button class="tick" data-paid="${t.id}" aria-label="${t.paid ? "Marcar como pendente" : t.type === "entrada" ? "Marcar como recebido" : "Marcar como pago"}" aria-pressed="${t.paid}">${icon("check")}</button>
       <button class="tx-main" data-edit="${t.id}">
         <span class="min0"><b>${esc(t.description)}</b><small>${esc([t.paid ? t.method : "", t.category, who].filter(Boolean).join(" · "))}${t.series_id ? ` · ${icon("repeat", "i xs")}recorrente` : ""}</small></span>
         <span class="tx-right"><b class="${t.type === "entrada" ? "pos" : "neg"}">${t.type === "entrada" ? "+" : "−"} ${money(t.amount)}</b>
         <small class="${overdue ? "bad" : ""}">${t.paid ? (t.type === "entrada" ? "Recebido " : "Pago ") + fmtDate(t.paid_date) : (overdue ? "Venceu " : "Vence ") + fmtDate(t.due_date)}</small></span>
       </button>
+      ${wa ? `<a class="icon-btn wa" href="${esc(wa)}" target="_blank" rel="noopener" title="Cobrar pelo WhatsApp" aria-label="Cobrar ${esc(ctx.clientLabel(t.client_id))} pelo WhatsApp">${icon("whatsapp")}</a>` : ""}
     </li>`;
   };
 

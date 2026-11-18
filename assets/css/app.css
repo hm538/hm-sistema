@@ -166,6 +166,11 @@ h2 svg.i { color: var(--brand) }
 .alerts li.bad svg { color: var(--neg) }
 .alerts li.warn { background: var(--warn-soft); color: #6b4308 }
 .alerts li.warn svg { color: var(--warn) }
+.alerts li.info { background: var(--brand-soft); color: var(--brand-ink) }
+.alerts li.info svg { color: var(--brand) }
+.alerts li .row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end }
+.tx.has-wa { grid-template-columns: auto minmax(0, 1fr) auto }
+.icon-btn.wa { color: #128c4b }
 
 /* ---------- lista de agenda ---------- */
 .agenda-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px }
@@ -509,3 +514,32 @@ i.more { color: var(--muted) }
   .toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)) }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+
+/* ---------- proposta e contrato ---------- */
+.doc-view { position: fixed; inset: 0; z-index: 60; background: var(--bg); overflow: auto; padding: 0 16px 40px }
+html.doc-open { overflow: hidden }
+.doc-bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; max-width: 820px; margin: 0 auto; padding: 14px 0; background: var(--bg) }
+.doc-bar .row { display: flex; gap: 8px }
+.doc { max-width: 820px; margin: 0 auto; background: #fff; color: #1c2233; border: 1px solid var(--line); border-radius: 18px; padding: 48px 56px; box-shadow: var(--shadow); font-size: 14.5px; line-height: 1.65 }
+.doc-head { display: flex; align-items: center; gap: 16px; padding-bottom: 18px; border-bottom: 2px solid #e6e9f2; margin-bottom: 26px }
+.doc-head img { width: 84px; height: auto }
+.doc-head b { display: block; font-size: 17px; color: #0c2e78 }
+.doc-head small { display: block; color: #5b6275; font-size: 12.5px }
+.doc h1 { font-size: 24px; margin: 0 0 6px; color: #0c2e78; letter-spacing: -.01em }
+.doc-sub { margin: 0 0 22px; color: #5b6275 }
+.doc h2 { font-size: 15px; margin: 22px 0 6px; color: #0c2e78 }
+.doc ul, .doc ol { margin: 6px 0; padding-left: 22px }
+.doc .muted { color: #5b6275; font-size: 13px }
+.doc .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 56px 0 24px; text-align: center; font-weight: 700 }
+.doc .sign i { display: block; border-top: 1px solid #1c2233; margin-bottom: 6px }
+.doc .sign small { display: block; font-weight: 500; color: #5b6275 }
+.doc-foot { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 30px; padding-top: 14px; border-top: 1px solid #e6e9f2; color: #5b6275; font-size: 12px }
+.doc-foot img { height: 14px; width: auto }
+@media (max-width: 720px) { .doc { padding: 28px 20px } .doc .sign { gap: 18px } }
+@media print {
+  html.doc-open body > *:not(.doc-view) { display: none !important }
+  html.doc-open .doc-view { position: static; overflow: visible; padding: 0; background: #fff }
+  html.doc-open .doc-bar { display: none }
+  html.doc-open .doc { border: 0; box-shadow: none; padding: 0; max-width: none; border-radius: 0 }
+  @page { margin: 18mm 16mm }
+}

@@ -1,6 +1,7 @@
 // Clientes (CRM): funil por etapa, contato rápido e resumo do que cada cliente já rendeu.
 import { esc, icon, money, todayISO, daysFrom, fmtDate } from "../ui.js";
 import { clientForm, projectForm, receivePayment, STAGES, label, priceLabel, isFixed, isFree, WEEKDAYS } from "./common.js";
+import { docForm } from "./docs.js";
 
 let filter = "todos";
 let query = "";
@@ -59,6 +60,7 @@ export default function clientes(el, ctx) {
           ${c.instagram ? `<a class="btn sm ghost" href="https://instagram.com/${esc(c.instagram)}" target="_blank" rel="noopener">@${esc(c.instagram)}</a>` : ""}
           <button class="btn sm ${c.fee ? "" : "ghost"}" data-pay="${c.id}">${icon("check")}Recebi</button>
           <button class="btn sm ghost" data-proj="${c.id}">${icon("plus")}Trabalho</button>
+          <button class="btn sm ghost" data-doc="${c.id}">${icon("file")}Proposta/contrato</button>
         </div>
       </article>`;
     }).join("")}</div>`
@@ -74,5 +76,6 @@ export default function clientes(el, ctx) {
     card.onkeydown = e => { if (e.key === "Enter") open(e) };
   });
   el.querySelectorAll("[data-proj]").forEach(b => b.onclick = () => projectForm(ctx, {}, { client_id: b.dataset.proj }));
+  el.querySelectorAll("[data-doc]").forEach(b => b.onclick = () => docForm(ctx, db.clients.find(c => c.id === b.dataset.doc)));
   el.querySelectorAll("[data-pay]").forEach(b => b.onclick = () => receivePayment(ctx, db.clients.find(c => c.id === b.dataset.pay)));
 }

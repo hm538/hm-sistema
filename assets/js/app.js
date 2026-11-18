@@ -1,6 +1,7 @@
 // HM Sistema: login, menu, navegação e carregamento dos dados.
 import { store, demo, TABLES } from "./store.js";
 import { esc, icon, toast } from "./ui.js";
+import { autoBackup, saveBackup } from "./backup.js";
 import painel from "./views/painel.js";
 import clientes from "./views/clientes.js";
 import trabalhos from "./views/trabalhos.js";
@@ -60,6 +61,7 @@ function layout(route) {
       <div class="top-row">
         <a class="brand" href="#painel"><img src="/assets/img/logo-hm.png" alt="HM Digital" width="1000" height="586"><span><b>HM Sistema</b><small>${esc(userEmail)}</small></span></a>
         <div class="top-actions">
+          ${demo ? "" : `<button class="btn sm ghost" data-backup title="Guardar uma cópia dos dados na pasta da HM">${icon("download")}<span>Backup</span></button>`}
           <button class="btn sm ghost" data-logout>${icon("logout")}<span>${demo ? "Recomeçar demo" : "Sair"}</span></button>
           <span class="avatar" aria-hidden="true">${esc(initial)}</span>
         </div>
@@ -81,6 +83,7 @@ function render() {
     current = route;
     app.innerHTML = layout(route);
     app.querySelectorAll("[data-logout]").forEach(b => b.addEventListener("click", () => store.signOut()));
+    app.querySelector("[data-backup]")?.addEventListener("click", () => saveBackup(ctx));
     document.title = `${ROUTES[route].label} · HM Sistema`;
     window.scrollTo(0, 0);
   }
@@ -100,7 +103,7 @@ function loginScreen(msg = "") {
         <label class="fld"><span>Senha</span><input id="login-pass" type="password" autocomplete="current-password" required></label>
         <p class="form-err" ${msg ? "" : "hidden"}>${esc(msg)}</p>
         <button class="btn primary wide" type="submit">Entrar</button>
-        <a class="credit" href="https://www.hmdigitalgo.com" target="_blank" rel="noopener" style="justify-self:center">Feito por <b>HM Digital</b></a>
+        <a class="credit" href="https://www.hmdigitalgo.com" target="_blank" rel="noopener" style="justify-self:center"><img src="/assets/img/logo-hm.png" alt="" width="1000" height="586">Feito por <b>HM Digital</b></a>
       </form>
     </div>`;
   const form = app.querySelector("form");
@@ -118,7 +121,7 @@ async function start() {
   if (!session) return loginScreen();
   userEmail = demo ? "Modo demonstração" : session.user.email;
   app.innerHTML = `<div class="loading">${icon("clock")}Carregando…</div>`;
-  try { await ctx.reload() }
+  try { await ctx.reload(); setTimeout(() => autoBackup(ctx), 3000) }
   catch (e) { app.innerHTML = `<div class="loading err">Não foi possível carregar os dados: ${esc(e.message)}<br><small>Confira se o arquivo supabase/schema.sql já foi rodado no Supabase.</small></div>` }
 }
 

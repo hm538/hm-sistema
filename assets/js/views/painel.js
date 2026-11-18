@@ -1,7 +1,8 @@
 // Painel: resumo do mês, alertas e próximos compromissos.
 import { PEOPLE } from "../config.js";
 import { esc, icon, money, todayISO, toISO, fmtDate, fmtDateLong, fmtTime, fmtHours, monthName, daysFrom, addDays } from "../ui.js";
-import { clientForm, projectForm, txForm, eventForm, goalForm, postForm, togglePaid, projectMinutes, label, KINDS, POST_STATUS } from "./common.js";
+import { clientForm, projectForm, txForm, eventForm, goalForm, postForm, togglePaid, projectMinutes, label, KINDS, POST_STATUS, chargeLink } from "./common.js";
+import { backupDue, saveBackup, lastBackup } from "../backup.js";
 
 export default function painel(el, ctx) {
   const { db } = ctx;
@@ -60,7 +61,10 @@ export default function painel(el, ctx) {
   };
 
   const alerts = [
-    ...lateIn.map(t => ({ tone: "bad", text: `Recebimento atrasado: ${t.description} (${money(t.amount)}), venceu ${fmtDate(t.due_date)}`, act: "Recebido", fn: () => togglePaid(ctx, t) })),
+    ...lateIn.map(t => ({ tone: "bad", text: `Recebimento atrasado: ${t.description} (${money(t.amount)}), venceu ${fmtDate(t.due_date)}`, act: "Recebido", fn: () => togglePaid(ctx, t), wa: chargeLink(ctx, t) })),
+    // Lembrete antes de vencer (hoje até 2 dias): mensagem pronta no WhatsApp
+    ...toReceive.filter(t => t.due_date >= today && t.due_date <= addDays(today, 2) && chargeLink(ctx, t)).map(t => ({ tone: "info", text: `Vence ${t.due_date === today ? "hoje" : fmtDate(t.due_date)}: ${t.description} (${money(t.amount)})`, act: "Recebido", fn: () => togglePaid(ctx, t), wa: chargeLink(ctx, t) })),
+    ...(backupDue() ? [{ tone: "info", text: lastBackup() ? `Backup da semana: o último foi em ${fmtDate(lastBackup())}. Guarde uma cópia dos dados.` : "Faça o primeiro backup: escolha a pasta HM DIGITAL › dados › backups na Área de Trabalho.", act: "Fazer backup", fn: () => saveBackup(ctx) }] : []),
     ...lateOut.map(t => ({ tone: "warn", text: `Conta atrasada: ${t.description} (${money(t.amount)}), venceu ${fmtDate(t.due_date)}`, act: "Paguei", fn: () => togglePaid(ctx, t) })),
     ...lateProjects.map(p => ({ tone: "bad", text: `Trabalho atrasado: ${p.title}${p.client_id ? " · " + ctx.clientLabel(p.client_id) : ""} (prazo ${fmtDate(p.due_date)}, ${-daysFrom(p.due_date)} dia(s))`, act: "Abrir", fn: () => projectForm(ctx, p) })),
     ...db.posts.filter(p => p.date < today && p.status !== "publicado").map(p => ({ tone: "warn", text: `Post atrasado: ${ctx.clientLabel(p.client_id)} · ${p.title} (${fmtDate(p.date)}, ${label(POST_STATUS, p.status)})`, act: "Abrir", fn: () => postForm(ctx, p) })),
@@ -95,7 +99,7 @@ export default function painel(el, ctx) {
     </section>
 
     ${alerts.length ? `<section class="card"><h2>Precisa de atenção</h2><ul class="alerts">${alerts.map((a, i) =>
-      `<li class="${a.tone}">${icon("alert")}<span>${esc(a.text)}</span><button class="btn sm ghost" data-alert="${i}">${esc(a.act)}</button></li>`).join("")}</ul></section>` : ""}
+      `<li class="${a.tone}">${icon(a.tone === "info" ? "clock" : "alert")}<span>${esc(a.text)}</span><span class="row">${a.wa ? `<a class="btn sm" href="${esc(a.wa)}" target="_blank" rel="noopener">${icon("whatsapp")}Cobrar</a>` : ""}<button class="btn sm ghost" data-alert="${i}">${esc(a.act)}</button></span></li>`).join("")}</ul></section>` : ""}
 
     <div class="two">
       <section class="card">
