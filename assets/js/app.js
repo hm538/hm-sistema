@@ -60,6 +60,7 @@ function layout(route) {
       <nav>${nav}</nav>
       <div class="side-foot">
         <small>${esc(userEmail)}</small>
+        <a class="credit" href="https://www.hmdigitalgo.com" target="_blank" rel="noopener">Feito por <b>HM Digital</b></a>
         <button class="btn ghost sm" data-logout>${icon("logout")}${demo ? "Recomeçar demo" : "Sair"}</button>
       </div>
     </aside>
@@ -95,6 +96,7 @@ function loginScreen(msg = "") {
         <label class="fld"><span>Senha</span><input id="login-pass" type="password" autocomplete="current-password" required></label>
         <p class="form-err" ${msg ? "" : "hidden"}>${esc(msg)}</p>
         <button class="btn primary wide" type="submit">Entrar</button>
+        <a class="credit" href="https://www.hmdigitalgo.com" target="_blank" rel="noopener" style="justify-self:center">Feito por <b>HM Digital</b></a>
       </form>
     </div>`;
   const form = app.querySelector("form");
