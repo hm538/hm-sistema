@@ -197,7 +197,7 @@ h2 svg.i { color: var(--brand) }
 .bar.neg i { background: var(--neg) }
 
 /* ---------- filtros ---------- */
-.funnel { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px }
+.funnel { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px }
 .funnel button { display: grid; gap: 2px; padding: 10px 12px; border-radius: 16px; text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--muted); box-shadow: var(--shadow) }
 .funnel button b { font: 600 18px var(--display); color: var(--text) }
 .funnel button span { font-size: 12.5px; font-weight: 700 }
@@ -236,6 +236,11 @@ h2 svg.i { color: var(--brand) }
 .st-fechado { color: var(--brand); background-color: var(--brand-soft) }
 .st-ativo { color: var(--pos); background-color: var(--pos-soft) }
 .st-encerrado { color: var(--muted) }
+.st-pausado { color: #8a5a00; background-color: #fbf0d9 }
+.funnel button.st-pausado b { color: #b07400 }
+.free-tag { display: inline-flex; align-items: center; gap: 6px; margin: 0; align-self: flex-start; font-weight: 700; font-size: 12.5px; padding: 4px 10px; border-radius: 99px; background: var(--pos-soft); color: var(--pos) }
+.free-tag svg { width: 14px; height: 14px }
+.free-tag.soon { background: var(--warn-soft); color: var(--warn) }
 .st-a_fazer { color: var(--muted) }
 .st-em_andamento { color: var(--brand); background-color: var(--brand-soft) }
 .st-revisao { color: var(--warn); background-color: var(--warn-soft) }
@@ -471,7 +476,7 @@ i.more { color: var(--muted) }
   .day-view > :last-child { order: -1 }
   .week-board { grid-template-columns: minmax(0, 1fr) }
   .wcol { min-height: 0 }
-  .funnel { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .funnel { grid-template-columns: repeat(4, minmax(0, 1fr)) }
   .cards { grid-template-columns: minmax(0, 1fr) }
   .day { min-height: 54px; padding: 4px }
   .day .chips { display: flex; flex-wrap: wrap; gap: 3px }

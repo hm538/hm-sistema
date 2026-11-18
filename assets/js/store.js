@@ -74,7 +74,8 @@ function seed() {
     clients: [
       { id: c1, name: "Cliente Exemplo 1", company: "Padaria Exemplo", phone: "62 90000-0001", stage: "ativo", won_at: d(-20), fee: 350, billing: "semanal", pay_day: 5, notes: "Exemplo do modo demonstração.", created_at: ts },
       { id: c2, name: "Cliente Exemplo 2", company: "Loja Exemplo", phone: "62 90000-0002", stage: "proposta", notes: "", created_at: ts },
-      { id: c3, name: "Cliente Exemplo 3", company: "Clínica Exemplo", stage: "contato", notes: "", created_at: ts }
+      { id: c3, name: "Cliente Exemplo 3", company: "Clínica Exemplo", stage: "ativo", fee: 0, billing: "mensal", free_until: d(10), won_at: d(-5), notes: "Cortesia de exemplo.", created_at: ts },
+      { id: uuid(), name: "Cliente Exemplo 4", company: "Barbearia Exemplo", stage: "pausado", notes: "Serviço pausado.", created_at: ts }
     ],
     projects: [
       { id: p1, client_id: c1, title: "Gestão de Instagram", service: "Marketing digital", owner: "Mariana", status: "em_andamento", start_date: d(-20), due_date: d(10), hours_estimated: 20, price: 1500, billing: "mensal", created_at: ts },

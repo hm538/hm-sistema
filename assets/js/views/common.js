@@ -3,7 +3,7 @@ import { PEOPLE, SERVICES, CATEGORIES, METHODS, CHANNELS, FORMATS } from "../con
 import { formModal, confirmModal, todayISO, addMonths, addDays, toISO, toast, money } from "../ui.js";
 
 export const STAGES = [
-  ["contato", "Contato"], ["proposta", "Proposta"], ["fechado", "Fechado"], ["ativo", "Ativo"], ["encerrado", "Encerrado"]
+  ["contato", "Contato"], ["proposta", "Proposta"], ["fechado", "Fechado"], ["ativo", "Ativo"], ["pausado", "Pausado"], ["encerrado", "Encerrado"]
 ];
 export const STATUSES = [
   ["a_fazer", "A fazer"], ["em_andamento", "Em andamento"], ["revisao", "Em revisão"], ["concluido", "Concluído"], ["pausado", "Pausado"]
@@ -22,7 +22,9 @@ const defaultTimes = { semanal: 12, quinzenal: 6, mensal: 6 };
 // Dia da semana do pagamento (1 = segunda … 7 = domingo)
 export const WEEKDAYS = [[1, "Segunda"], [2, "Terça"], [3, "Quarta"], [4, "Quinta"], [5, "Sexta"], [6, "Sábado"], [7, "Domingo"]];
 const isoWeekday = iso => { const d = new Date(iso + "T12:00").getDay(); return d === 0 ? 7 : d };
-export const isFixed = c => c.fee > 0 && FREQS.some(([k]) => k === c.billing) && ["ativo", "fechado"].includes(c.stage);
+// Cortesia: cliente que ainda não paga (free_until = último dia grátis)
+export const isFree = c => !!c.free_until && c.free_until >= todayISO();
+export const isFixed = c => c.fee > 0 && !isFree(c) && FREQS.some(([k]) => k === c.billing) && ["ativo", "fechado"].includes(c.stage);
 
 // Datas de cobrança de um cliente fixo dentro de um mês ("AAAA-MM")
 export function chargeDates(ctx, c, ym) {
@@ -165,6 +167,7 @@ export async function clientForm(ctx, c = {}) {
       { name: "stage", label: "Etapa", type: "select", options: STAGES, value: c.stage || "contato" },
       { name: "fee", label: "Valor que o cliente paga (R$)", type: "number", step: "0.01", value: c.fee },
       { name: "billing", label: "Frequência do pagamento", type: "select", options: [...FREQS, ["avulso", "Avulso / por projeto"]], value: c.billing || "semanal" },
+      { name: "free_until", label: "Grátis até (cortesia)", type: "date", value: c.free_until, hint: "Sem cobrança até esta data; o Painel avisa quando chegar a hora de renegociar" },
       { name: "pay_day", label: "Dia em que paga", type: "select", options: WEEKDAYS, value: c.pay_day || 1, showIf: "billing!=avulso", hint: "Usado para gerar as cobranças no Financeiro" },
       { name: "notes", label: "Anotações", type: "textarea", value: c.notes, full: true, placeholder: "O que conversaram, o que o cliente quer, próximos passos…" }
     ]
@@ -177,9 +180,11 @@ export async function clientForm(ctx, c = {}) {
   }
   if (r.instagram) r.instagram = r.instagram.replace(/^@/, "");
   r.pay_day = r.billing === "avulso" ? null : Number(r.pay_day) || null;
+  // Só manda a cortesia quando for usada (assim funciona mesmo antes de a coluna existir no banco)
+  if (!r.free_until) { if (c.free_until) r.free_until = null; else delete r.free_until }
   // Guarda quando o cliente foi fechado (usado nas metas)
   if (["fechado", "ativo"].includes(r.stage) && !c.won_at) r.won_at = todayISO();
-  if (!["fechado", "ativo", "encerrado"].includes(r.stage)) r.won_at = null;
+  if (!["fechado", "ativo", "pausado", "encerrado"].includes(r.stage)) r.won_at = null;
   return ctx.run(() => c.id ? ctx.store.update("clients", c.id, r) : ctx.store.insert("clients", r), c.id ? "Cliente salvo" : "Cliente cadastrado");
 }
 

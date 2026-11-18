@@ -64,6 +64,7 @@ export default function painel(el, ctx) {
     ...lateOut.map(t => ({ tone: "warn", text: `Conta atrasada: ${t.description} (${money(t.amount)}), venceu ${fmtDate(t.due_date)}`, act: "Paguei", fn: () => togglePaid(ctx, t) })),
     ...lateProjects.map(p => ({ tone: "bad", text: `Trabalho atrasado: ${p.title}${p.client_id ? " · " + ctx.clientLabel(p.client_id) : ""} (prazo ${fmtDate(p.due_date)}, ${-daysFrom(p.due_date)} dia(s))`, act: "Abrir", fn: () => projectForm(ctx, p) })),
     ...db.posts.filter(p => p.date < today && p.status !== "publicado").map(p => ({ tone: "warn", text: `Post atrasado: ${ctx.clientLabel(p.client_id)} · ${p.title} (${fmtDate(p.date)}, ${label(POST_STATUS, p.status)})`, act: "Abrir", fn: () => postForm(ctx, p) })),
+    ...db.clients.filter(c => c.free_until && ["ativo", "fechado"].includes(c.stage) && daysFrom(c.free_until) <= 15).map(c => ({ tone: "warn", text: daysFrom(c.free_until) >= 0 ? `Cortesia de ${c.company || c.name} termina ${daysFrom(c.free_until) === 0 ? "hoje" : "em " + fmtDate(c.free_until)}: hora de renegociar o valor` : `Cortesia de ${c.company || c.name} acabou em ${fmtDate(c.free_until)}: defina o valor e tire a data de cortesia`, act: "Abrir", fn: () => clientForm(ctx, c) })),
     ...overHours.map(p => ({ tone: "warn", text: `${p.title} passou das horas estimadas: ${fmtHours(projectMinutes(ctx, p.id))} de ${fmtHours(p.hours_estimated * 60)}`, act: "Ver", fn: () => ctx.go("trabalhos") }))
   ];
 

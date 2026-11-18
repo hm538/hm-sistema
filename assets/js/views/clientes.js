@@ -1,6 +1,6 @@
 // Clientes (CRM): funil por etapa, contato rápido e resumo do que cada cliente já rendeu.
-import { esc, icon, money, todayISO } from "../ui.js";
-import { clientForm, projectForm, receivePayment, STAGES, label, priceLabel, isFixed, WEEKDAYS } from "./common.js";
+import { esc, icon, money, todayISO, daysFrom, fmtDate } from "../ui.js";
+import { clientForm, projectForm, receivePayment, STAGES, label, priceLabel, isFixed, isFree, WEEKDAYS } from "./common.js";
 
 let filter = "todos";
 let query = "";
@@ -41,6 +41,7 @@ export default function clientes(el, ctx) {
           <div class="min0"><h3>${esc(c.company || c.name)}</h3><small>${esc(c.company ? c.name : (c.email || ""))}</small></div>
           <span class="pill st-${c.stage}">${esc(label(STAGES, c.stage))}</span>
         </div>
+        ${isFree(c) ? `<p class="free-tag ${daysFrom(c.free_until) <= 15 ? "soon" : ""}">${icon("clock")}Grátis até ${esc(fmtDate(c.free_until))}${daysFrom(c.free_until) <= 15 ? ` · renegociar em ${daysFrom(c.free_until)} dia(s)` : ""}</p>` : ""}
         ${c.notes ? `<p class="note">${esc(c.notes)}</p>` : ""}
         ${c.fee ? (() => {
           const mc = monthCharges(c.id), paid = mc.filter(t => t.paid), late = mc.filter(t => !t.paid && t.due_date < todayISO());
