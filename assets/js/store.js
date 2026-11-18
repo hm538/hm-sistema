@@ -1,7 +1,7 @@
 // Acesso aos dados. Mesma interface para o Supabase e para o modo demonstração.
 import { SUPABASE } from "./config.js";
 
-export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals", "posts", "bills"];
+export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals", "posts", "bills", "leads"];
 export const demo = !SUPABASE.url;
 
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now());
@@ -111,6 +111,11 @@ function seed() {
     ],
     goals: [
       { id: uuid(), month: d(0).slice(0, 7), revenue: 5000, profit: 3500, new_clients: 2, delivered: 2, created_at: ts }
+    ],
+    leads: [
+      { id: uuid(), company: "Ateliê Exemplo", name: "Ana", niche: "industria", instagram: "atelie.exemplo", phone: "62 90000-0101", bio_link: "linktree", has_site: false, runs_ads: false, followers: 4200, last_post: d(-38), posts_30d: 2, source: "instagram", seed: "@marca.exemplo", offers: ["site", "marketing", "pitch"], offer: "site", score: 85, hook: "o último post foi há mais de um mês e o link da bio ainda é um Linktree", diagnosis: "Fábrica com bom volume de seguidores, mas sem site e com o Instagram parado há 5 semanas.", status: "novo", attempts: 0, created_at: ts },
+      { id: uuid(), company: "Studio de Unhas Exemplo", niche: "servicos", instagram: "unhas.exemplo", phone: "62 90000-0102", bio_link: "whatsapp", manual_ops: true, has_site: false, runs_ads: false, rating: 4.8, reviews: 96, followers: 1800, last_post: d(-3), posts_30d: 12, source: "maps", seed: "manicure Setor Bueno", offers: ["sistema", "pitch", "trafego"], score: 88, hook: "a agenda é toda feita pelo direct", diagnosis: "Agenda cheia feita na mão pelo direct; 96 avaliações 4,8 no Google.", status: "novo", attempts: 0, created_at: ts },
+      { id: uuid(), company: "Advocacia Exemplo", name: "Dr. Carlos", niche: "liberais", instagram: "adv.exemplo", bio_link: "nenhum", has_site: false, followers: 900, last_post: d(-12), posts_30d: 3, source: "instagram", seed: "@contabil.exemplo", offers: ["pitch", "site"], score: 75, status: "abordado", channel: "instagram", attempts: 1, contacted_at: at(-3, 10), followup_on: d(0), created_at: ts }
     ],
     events: [
       { id: uuid(), title: "Reunião de proposta", kind: "reuniao", start_at: at(1, 10), end_at: at(1, 11), client_id: c2, person: "Neto", location: "Online", created_at: ts },

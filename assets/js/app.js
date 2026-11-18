@@ -8,6 +8,7 @@ import trabalhos from "./views/trabalhos.js";
 import financeiro from "./views/financeiro.js";
 import agenda from "./views/agenda.js";
 import conteudo from "./views/conteudo.js";
+import prospeccao from "./views/prospeccao.js";
 
 const ROUTES = {
   painel: { label: "Painel", icon: "home", view: painel },
@@ -15,12 +16,13 @@ const ROUTES = {
   trabalhos: { label: "Trabalhos", icon: "briefcase", view: trabalhos },
   financeiro: { label: "Financeiro", icon: "wallet", view: financeiro },
   agenda: { label: "Agenda", icon: "calendar", view: agenda },
-  conteudo: { label: "Conteúdo", icon: "image", view: conteudo }
+  conteudo: { label: "Conteúdo", icon: "image", view: conteudo },
+  prospeccao: { label: "Prospecção", short: "Leads", icon: "target", view: prospeccao }
 };
 
 const db = Object.fromEntries(TABLES.map(t => [t, []]));
-const OPTIONAL = ["goals", "posts", "bills"];
-const OPTIONAL_LABEL = { goals: "Metas", posts: "Conteúdo (postagens)", bills: "Contas fixas" };
+const OPTIONAL = ["goals", "posts", "bills", "leads"];
+const OPTIONAL_LABEL = { goals: "Metas", posts: "Conteúdo (postagens)", bills: "Contas fixas", leads: "Prospecção" };
 const warned = new Set();
 const app = document.getElementById("app");
 let current = null;
@@ -53,8 +55,9 @@ const ctx = {
 };
 
 function layout(route) {
-  const nav = Object.entries(ROUTES).map(([k, r]) =>
-    `<a href="#${k}" class="${k === route ? "on" : ""}" ${k === route ? 'aria-current="page"' : ""}>${icon(r.icon)}<span>${r.label}</span></a>`).join("");
+  const link = short => Object.entries(ROUTES).map(([k, r]) =>
+    `<a href="#${k}" class="${k === route ? "on" : ""}" ${k === route ? 'aria-current="page"' : ""}>${icon(r.icon)}<span>${short && r.short || r.label}</span></a>`).join("");
+  const nav = link(false);
   const initial = (userEmail || "HM").trim()[0].toUpperCase();
   return `
     <header class="top"><div class="top-in">
@@ -74,7 +77,7 @@ function layout(route) {
       <a class="credit" href="https://www.hmdigitalgo.com" target="_blank" rel="noopener"><img src="/assets/img/logo-hm.png" alt="" width="1000" height="586">Feito por <b>HM Digital</b></a>
       <nav><span>${esc(userEmail)}</span><button type="button" data-logout>${demo ? "Recomeçar demo" : "Sair"}</button></nav>
     </footer>
-    <nav class="tabbar" aria-label="Seções">${nav}</nav>`;
+    <nav class="tabbar" aria-label="Seções">${link(true)}</nav>`;
 }
 
 function render() {

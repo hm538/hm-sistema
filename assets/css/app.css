@@ -543,3 +543,34 @@ html.doc-open { overflow: hidden }
   html.doc-open .doc { border: 0; box-shadow: none; padding: 0; max-width: none; border-radius: 0 }
   @page { margin: 18mm 16mm }
 }
+
+/* ---------- Prospecção ---------- */
+.send-cta { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px 18px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow) }
+.send-cta > div { display: grid; gap: 2px; min-width: 0 }
+.send-cta small { color: var(--muted); font-size: 13px }
+.prosp-filters { justify-content: space-between }
+.prosp-filters .search { flex: 1 1 240px; max-width: 420px }
+.funnel button.ls-novo b { color: var(--brand) } .funnel button.ls-respondeu b, .funnel button.ls-reuniao b { color: var(--warn) } .funnel button.ls-fechou b { color: var(--pos) }
+.status-sel.ls-novo { color: var(--brand); background-color: var(--brand-soft) }
+.status-sel.ls-abordado { color: var(--muted) }
+.status-sel.ls-respondeu, .status-sel.ls-reuniao { color: var(--warn); background-color: var(--warn-soft) }
+.status-sel.ls-fechou { color: var(--pos); background-color: var(--pos-soft) }
+.status-sel.ls-sem_interesse { color: var(--muted) }
+.status-sel.ls-nao_contatar { color: var(--neg); background-color: var(--neg-soft) }
+.score { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font: 600 14px var(--display); background: var(--sunk); color: var(--muted) }
+.score.mid { background: var(--warn-soft); color: var(--warn) }
+.score.hi { background: var(--pos-soft); color: var(--pos) }
+.offer-row { display: flex; flex-wrap: wrap; gap: 6px }
+.pill.offer.main { background: var(--text); color: #fff }
+.sig { margin: 0; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere }
+.item-meta .bad { color: var(--neg); font-weight: 700 }
+.muted-p { margin: 0; color: var(--muted); font-size: 13.5px }
+.send-sheet { gap: 12px }
+.send-sheet .eyebrow { display: block; margin-bottom: 2px }
+.send-sheet .diag { margin: 0; padding: 10px 12px; border-radius: 14px; background: var(--brand-soft); color: var(--brand-ink); font-size: 13.5px }
+.send-sheet textarea { min-height: 170px; font-size: 14px }
+.send-btns .btn { flex: 1 1 200px; justify-content: center }
+@media (max-width: 720px) {
+  .prosp-kpis { grid-template-columns: minmax(0, 1fr) }
+  .send-cta .btn { width: 100%; justify-content: center }
+}

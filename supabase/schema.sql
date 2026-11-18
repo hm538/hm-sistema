@@ -145,6 +145,51 @@ create index if not exists time_entries_project_idx on time_entries(project_id);
 create index if not exists transactions_due_idx on transactions(due_date);
 create index if not exists events_start_idx on events(start_at);
 
+-- Prospecção: empresas que podem virar clientes (coletadas no Instagram/Google Maps ou cadastradas à mão).
+-- Só dados públicos de empresa. Quem pede para não receber mensagem fica como 'nao_contatar' e nunca é importado de novo.
+create table if not exists leads (
+  id uuid primary key default gen_random_uuid(),
+  company text not null,
+  name text,                       -- pessoa de contato, se pública
+  niche text not null default 'outro'
+    check (niche in ('industria', 'servicos', 'liberais', 'alimentacao', 'varejo', 'outro')),
+  instagram text,                  -- sem @
+  phone text,                      -- telefone/WhatsApp comercial público
+  site text,
+  bio_link text check (bio_link in ('site', 'linktree', 'whatsapp', 'nenhum', 'outro')),
+  city text default 'Goiânia',
+  address text,
+  maps_url text,
+  source text not null default 'manual' check (source in ('instagram', 'maps', 'indicacao', 'manual')),
+  seed text,                       -- de onde veio (perfil-semente ou busca no Maps)
+  followers int,
+  last_post date,
+  posts_30d int,
+  has_site boolean,
+  runs_ads boolean,
+  manual_ops boolean,              -- agenda/pedidos feitos na mão pelo WhatsApp ou direct
+  rating numeric(2,1),
+  reviews int,
+  offers text[],                   -- ofertas que fazem sentido, da melhor para a pior
+  offer text check (offer in ('marketing', 'trafego', 'pitch', 'site', 'sistema')),
+  score int check (score between 0 and 100),
+  hook text,                       -- frase curta usada na mensagem ("o último post foi há 40 dias")
+  diagnosis text,
+  message text,
+  status text not null default 'novo'
+    check (status in ('novo', 'abordado', 'respondeu', 'reuniao', 'fechou', 'sem_interesse', 'nao_contatar')),
+  channel text check (channel in ('whatsapp', 'instagram')),
+  contacted_at timestamptz,
+  followup_on date,
+  attempts int not null default 0,
+  client_id uuid references clients(id) on delete set null,
+  notes text,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists leads_instagram_uq on leads (lower(instagram)) where instagram is not null and instagram <> '';
+create unique index if not exists leads_phone_uq on leads (regexp_replace(phone, '\D', '', 'g')) where phone is not null and phone <> '';
+create index if not exists leads_status_idx on leads(status);
+
 -- Etapas do post: o cliente aprova ou pede ajuste pelo Portal do Cliente (hm-portal)
 alter table posts drop constraint if exists posts_status_check;
 alter table posts add constraint posts_status_check
@@ -180,7 +225,7 @@ create policy "equipe lê equipe" on team_members for select to authenticated us
 do $$
 declare t text;
 begin
-  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals', 'posts', 'bills'] loop
+  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals', 'posts', 'bills', 'leads'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "equipe HM" on %I', t);
     execute format('create policy "equipe HM" on %I for all to authenticated using (is_team()) with check (is_team())', t);
