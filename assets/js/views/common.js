@@ -166,7 +166,7 @@ export async function clientForm(ctx, c = {}) {
       { name: "instagram", label: "Instagram", value: c.instagram, placeholder: "@perfil" },
       { name: "stage", label: "Etapa", type: "select", options: STAGES, value: c.stage || "contato" },
       { name: "fee", label: "Valor que o cliente paga (R$)", type: "number", step: "0.01", value: c.fee },
-      { name: "billing", label: "Frequência do pagamento", type: "select", options: [...FREQS, ["avulso", "Avulso / por projeto"]], value: c.billing || "semanal" },
+      { name: "billing", label: "Frequência do pagamento", type: "select", options: [...FREQS, ["avulso", "Avulso (sem cobrança automática: marca quando pagar)"]], value: c.billing || "semanal" },
       { name: "free_until", label: "Grátis até (cortesia)", type: "date", value: c.free_until, hint: "Sem cobrança até esta data; o Painel avisa quando chegar a hora de renegociar" },
       { name: "pay_day", label: "Dia em que paga", type: "select", options: WEEKDAYS, value: c.pay_day || 1, showIf: "billing!=avulso", hint: "Usado para gerar as cobranças no Financeiro" },
       { name: "notes", label: "Anotações", type: "textarea", value: c.notes, full: true, placeholder: "O que conversaram, o que o cliente quer, próximos passos…" }
@@ -185,7 +185,13 @@ export async function clientForm(ctx, c = {}) {
   // Guarda quando o cliente foi fechado (usado nas metas)
   if (["fechado", "ativo"].includes(r.stage) && !c.won_at) r.won_at = todayISO();
   if (!["fechado", "ativo", "pausado", "encerrado"].includes(r.stage)) r.won_at = null;
-  return ctx.run(() => c.id ? ctx.store.update("clients", c.id, r) : ctx.store.insert("clients", r), c.id ? "Cliente salvo" : "Cliente cadastrado");
+  // Pausou o serviço ou passou a pagar "avulso": oferece tirar as cobranças automáticas em aberto
+  const paused = r.stage === "pausado" && c.stage !== "pausado", loose = r.billing === "avulso" && c.billing !== "avulso";
+  const from = paused ? addDays(todayISO(), -((new Date(todayISO() + "T12:00").getDay() + 6) % 7)) : todayISO(); // pausado: desde a segunda desta semana
+  const pending = c.id && (paused || loose) ? ctx.db.transactions.filter(t => t.client_id === c.id && t.type === "entrada" && !t.paid && t.due_date >= from) : [];
+  await ctx.run(() => c.id ? ctx.store.update("clients", c.id, r) : ctx.store.insert("clients", r), c.id ? "Cliente salvo" : "Cliente cadastrado");
+  if (pending.length && await confirmModal(`${c.company || c.name}: tirar ${pending.length} cobrança(s) em aberto (${money(pending.reduce((s, t) => s + Number(t.amount), 0))}) a partir de ${from.split("-").reverse().slice(0, 2).join("/")}? ${paused ? "Quando o serviço voltar, mude a etapa para Ativo e use \"Gerar lançamentos do mês\"." : "Quando pagar, use \"Recebi\" no cartão do cliente."}`, "Tirar cobranças"))
+    return ctx.run(async () => { for (const t of pending) await ctx.store.remove("transactions", t.id) }, "Cobranças retiradas", ["transactions"]);
 }
 
 // ---------- Trabalho ----------
