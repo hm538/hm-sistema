@@ -1,7 +1,7 @@
 // Acesso aos dados. Mesma interface para o Supabase e para o modo demonstração.
 import { SUPABASE } from "./config.js";
 
-export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals", "posts", "bills", "leads", "seeds"];
+export const TABLES = ["clients", "projects", "time_entries", "transactions", "events", "goals", "posts", "bills", "leads", "seeds", "ig_accounts", "ig_rules"];
 export const demo = !SUPABASE.url;
 
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now());
@@ -25,6 +25,7 @@ function supabaseStore() {
     },
     async signOut() { await sb.auth.signOut() },
     async list(table) { return check(await sb.from(table).select("*").order("created_at")) },
+    async view(name) { return check(await sb.from(name).select("*")) },
     async dump(table) { return check(await sb.from(table).select("*")) },
     async insert(table, rows) { return check(await sb.from(table).insert(rows).select()) },
     async update(table, id, patch) { return check(await sb.from(table).update(patch).eq("id", id).select()) },
@@ -49,6 +50,7 @@ function localStore() {
     async signIn() {},
     async signOut() { try { localStorage.removeItem(KEY) } catch {} location.reload() },
     async list(table) { return structuredClone(data[table] || []) },
+    async view(name) { return structuredClone(data[name] || []) },
     async dump(table) { if (!data[table]) throw new Error("sem tabela"); return structuredClone(data[table]) },
     async insert(table, rows) {
       const arr = (Array.isArray(rows) ? rows : [rows]).map(r => ({ id: uuid(), created_at: now(), ...r }));
@@ -71,8 +73,21 @@ function seed() {
   const d = (offset) => { const x = new Date(); x.setDate(x.getDate() + offset); return x.toISOString().slice(0, 10) };
   const at = (offset, h) => { const x = new Date(); x.setDate(x.getDate() + offset); x.setHours(h, 0, 0, 0); return x.toISOString() };
   const c1 = uuid(), c2 = uuid(), c3 = uuid(), p1 = uuid(), p2 = uuid(), p3 = uuid(), s1 = uuid();
+  const a1 = uuid(), r1 = uuid(), r2 = uuid(), r3 = uuid();
   const ts = new Date().toISOString();
   return {
+    ig_accounts: [{ id: a1, client_id: c2, ig_id: "17840000000000000", username: "loja.exemplo", active: true, created_at: ts }],
+    ig_rules: [
+      { id: r1, account_id: a1, name: "Comentou QUERO", kind: "comment", keywords: ["quero"], dm: "Oi! Que bom que você curtiu 😊 Te mando os detalhes por aqui.", public_replies: ["Te chamei no Direct!", "Olha seu Direct 📩"], active: true, priority: 10, created_at: ts },
+      { id: r2, account_id: a1, name: "Perguntou preço", kind: "dm", keywords: ["preco", "valor"], dm: "Oi! Me conta qual produto você viu que eu te passo o valor.", public_replies: [], active: true, priority: 20, created_at: ts },
+      { id: r3, account_id: a1, name: "Boas-vindas no 1º Direct", kind: "welcome", keywords: [], dm: "Oi! Seja bem-vindo(a) à Loja Exemplo 😊", public_replies: [], active: false, priority: 5, created_at: ts }
+    ],
+    ig_stats: [
+      { account_id: a1, rule_id: r1, kind: "comment", media_id: "1", media_url: "https://www.instagram.com/p/exemplo1/", status: "enviado", n: 37, last_at: ts },
+      { account_id: a1, rule_id: r1, kind: "comment", media_id: "2", media_url: "https://www.instagram.com/p/exemplo2/", status: "enviado", n: 12, last_at: ts },
+      { account_id: a1, rule_id: r2, kind: "dm", media_id: null, media_url: null, status: "enviado", n: 9, last_at: ts },
+      { account_id: a1, rule_id: r1, kind: "comment", media_id: "2", media_url: null, status: "falhou", n: 1, last_at: ts }
+    ],
     clients: [
       { id: c1, name: "Cliente Exemplo 1", company: "Padaria Exemplo", phone: "62 90000-0001", stage: "ativo", won_at: d(-20), fee: 350, billing: "semanal", pay_day: 5, notes: "Exemplo do modo demonstração.", created_at: ts },
       { id: c2, name: "Cliente Exemplo 2", company: "Loja Exemplo", phone: "62 90000-0002", stage: "proposta", notes: "", created_at: ts },

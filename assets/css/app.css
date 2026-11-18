@@ -593,3 +593,21 @@ html.doc-open { overflow: hidden }
 .seed-row svg.i { width: 14px; height: 14px; vertical-align: -2px }
 .status-sel.seed-pendente { color: var(--warn); background-color: var(--warn-soft) }
 .status-sel.seed-pesquisada { color: var(--pos); background-color: var(--pos-soft) }
+
+/* ---------- Direct ---------- */
+.dm-acc { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); box-shadow: var(--shadow) }
+.dm-acc > div { flex: 1; display: grid; gap: 2px }
+.dm-acc small { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere }
+.dm-rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px }
+.dm-rule { cursor: pointer }
+.dm-rule.off { opacity: .6 }
+.dm-words { display: flex; flex-wrap: wrap; gap: 6px }
+.dm-words span { font: 700 12px var(--body); padding: 3px 9px; border-radius: 99px; background: var(--brand-soft); color: var(--brand) }
+.dm-msg { margin: 0; font-size: 13.5px; line-height: 1.45; padding: 10px 12px; border-radius: 14px 14px 14px 4px; background: var(--sunk); white-space: pre-wrap; overflow-wrap: anywhere }
+.dm-posts { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px }
+.dm-posts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px }
+.dm-posts li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.dm-posts li b { font: 600 18px var(--display); grid-row: span 2; align-self: center; font-variant-numeric: tabular-nums }
+.dm-posts li small { color: var(--muted); font-size: 12px }
+.dm-warn { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--warn-soft); color: #7a4a06; font-size: 13px }
+.dm-warn svg.i { flex: none; width: 17px; height: 17px }

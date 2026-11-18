@@ -9,6 +9,7 @@ import financeiro from "./views/financeiro.js";
 import agenda from "./views/agenda.js";
 import conteudo from "./views/conteudo.js";
 import prospeccao from "./views/prospeccao.js";
+import direct from "./views/direct.js";
 
 const ROUTES = {
   painel: { label: "Painel", icon: "home", view: painel },
@@ -17,12 +18,13 @@ const ROUTES = {
   financeiro: { label: "Financeiro", icon: "wallet", view: financeiro },
   agenda: { label: "Agenda", icon: "calendar", view: agenda },
   conteudo: { label: "Conteúdo", icon: "image", view: conteudo },
-  prospeccao: { label: "Prospecção", short: "Leads", icon: "target", view: prospeccao }
+  prospeccao: { label: "Prospecção", short: "Leads", icon: "target", view: prospeccao },
+  direct: { label: "Direct", icon: "chat", view: direct }
 };
 
 const db = Object.fromEntries(TABLES.map(t => [t, []]));
-const OPTIONAL = ["goals", "posts", "bills", "leads", "seeds"];
-const OPTIONAL_LABEL = { goals: "Metas", posts: "Conteúdo (postagens)", bills: "Contas fixas", leads: "Prospecção", seeds: "Prospecção (sementes)" };
+const OPTIONAL = ["goals", "posts", "bills", "leads", "seeds", "ig_accounts", "ig_rules"];
+const OPTIONAL_LABEL = { goals: "Metas", posts: "Conteúdo (postagens)", bills: "Contas fixas", leads: "Prospecção", seeds: "Prospecção (sementes)", ig_accounts: "Direct", ig_rules: "Direct" };
 const warned = new Set();
 const app = document.getElementById("app");
 let current = null;
