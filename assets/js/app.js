@@ -54,21 +54,25 @@ const ctx = {
 function layout(route) {
   const nav = Object.entries(ROUTES).map(([k, r]) =>
     `<a href="#${k}" class="${k === route ? "on" : ""}" ${k === route ? 'aria-current="page"' : ""}>${icon(r.icon)}<span>${r.label}</span></a>`).join("");
+  const initial = (userEmail || "HM").trim()[0].toUpperCase();
   return `
-    <aside class="side">
-      <div class="brand"><img src="/assets/img/logo-hm.png" alt="HM Digital" width="1000" height="586"><span>Sistema</span></div>
-      <nav>${nav}</nav>
-      <div class="side-foot">
-        <small>${esc(userEmail)}</small>
-        <a class="credit" href="https://www.hmdigitalgo.com" target="_blank" rel="noopener">Feito por <b>HM Digital</b></a>
-        <button class="btn ghost sm" data-logout>${icon("logout")}${demo ? "Recomeçar demo" : "Sair"}</button>
+    <header class="top"><div class="top-in">
+      <div class="top-row">
+        <a class="brand" href="#painel"><img src="/assets/img/logo-hm.png" alt="HM Digital" width="1000" height="586"><span><b>HM Sistema</b><small>${esc(userEmail)}</small></span></a>
+        <div class="top-actions">
+          <button class="btn sm ghost" data-logout>${icon("logout")}<span>${demo ? "Recomeçar demo" : "Sair"}</span></button>
+          <span class="avatar" aria-hidden="true">${esc(initial)}</span>
+        </div>
       </div>
-    </aside>
-    <div class="content">
-      ${demo ? `<div class="demo-bar">${icon("alert")}<span><b>Modo demonstração.</b> Os dados são de exemplo e ficam só neste navegador. Configure o Supabase em <code>assets/js/config.js</code> para usar de verdade.</span></div>` : ""}
-      <main id="view" class="view"></main>
-    </div>
-    <nav class="tabbar">${nav}</nav>`;
+      <nav class="tabs" aria-label="Seções">${nav}</nav>
+    </div></header>
+    ${demo ? `<div class="view" style="flex:0;padding-bottom:0">${`<div class="demo-bar">${icon("alert")}<span><b>Modo demonstração.</b> Os dados são de exemplo e ficam só neste navegador.</span></div>`}</div>` : ""}
+    <main id="view" class="view"></main>
+    <footer class="foot">
+      <a class="credit" href="https://www.hmdigitalgo.com" target="_blank" rel="noopener"><img src="/assets/img/logo-hm.png" alt="" width="1000" height="586">Feito por <b>HM Digital</b></a>
+      <nav><span>${esc(userEmail)}</span><button type="button" data-logout>${demo ? "Recomeçar demo" : "Sair"}</button></nav>
+    </footer>
+    <nav class="tabbar" aria-label="Seções">${nav}</nav>`;
 }
 
 function render() {
@@ -76,7 +80,7 @@ function render() {
   if (route !== current || !document.getElementById("view")) {
     current = route;
     app.innerHTML = layout(route);
-    app.querySelector("[data-logout]").addEventListener("click", () => store.signOut());
+    app.querySelectorAll("[data-logout]").forEach(b => b.addEventListener("click", () => store.signOut()));
     document.title = `${ROUTES[route].label} · HM Sistema`;
     window.scrollTo(0, 0);
   }
@@ -119,5 +123,11 @@ async function start() {
 }
 
 window.addEventListener("hashchange", render);
+// Linha embaixo do topo só depois de rolar
+let ticking = false;
+window.addEventListener("scroll", () => {
+  if (ticking) return; ticking = true;
+  requestAnimationFrame(() => { document.querySelector(".top")?.classList.toggle("scrolled", scrollY > 4); ticking = false });
+}, { passive: true });
 store.onAuth(s => { if (!s) loginScreen() });
 start();
