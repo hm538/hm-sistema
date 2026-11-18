@@ -574,3 +574,22 @@ html.doc-open { overflow: hidden }
   .prosp-kpis { grid-template-columns: minmax(0, 1fr) }
   .send-cta .btn { width: 100%; justify-content: center }
 }
+
+/* Prospecção 2: triagem, análise e sementes */
+.funnel.funnel-wide { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) }
+.funnel button.ls-avaliar b { color: var(--warn) } .funnel button.ls-descartado b { color: var(--neg) }
+.status-sel.ls-avaliar { color: var(--warn); background-color: var(--warn-soft) }
+.status-sel.ls-descartado { color: var(--neg); background-color: var(--neg-soft) }
+.item.is-triage { border-color: #f0d9a8 }
+.analysis { font-size: 13px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); padding: 8px 12px }
+.analysis summary { cursor: pointer; font-weight: 700; color: var(--brand-ink) }
+.analysis div { margin-top: 8px; color: var(--text); line-height: 1.55 }
+.reject { margin: 0; display: flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 700; color: var(--neg) }
+.reject svg.i { width: 14px; height: 14px }
+.seed-list { display: grid; gap: 8px }
+.seed-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow) }
+.seed-row .min0 { display: grid; gap: 2px }
+.seed-row small { color: var(--muted); font-size: 12.5px }
+.seed-row svg.i { width: 14px; height: 14px; vertical-align: -2px }
+.status-sel.seed-pendente { color: var(--warn); background-color: var(--warn-soft) }
+.status-sel.seed-pesquisada { color: var(--pos); background-color: var(--pos-soft) }

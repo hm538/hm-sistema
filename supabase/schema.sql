@@ -190,6 +190,38 @@ create unique index if not exists leads_instagram_uq on leads (lower(instagram))
 create unique index if not exists leads_phone_uq on leads (regexp_replace(phone, '\D', '', 'g')) where phone is not null and phone <> '';
 create index if not exists leads_status_idx on leads(status);
 
+-- Prospecção 2: triagem (Para avaliar → Serve / Não serve) e análise completa de cada empresa
+alter table leads alter column status set default 'avaliar';
+alter table leads drop constraint if exists leads_status_check;
+alter table leads add constraint leads_status_check
+  check (status in ('avaliar', 'novo', 'abordado', 'respondeu', 'reuniao', 'fechou', 'sem_interesse', 'nao_contatar', 'descartado'));
+alter table leads add column if not exists reject_reason text;   -- motivo do "Não serve"
+alter table leads add column if not exists avg_likes int;        -- média dos últimos posts
+alter table leads add column if not exists avg_comments int;
+alter table leads add column if not exists engagement numeric(5,2); -- % (curtidas + comentários) / seguidores
+alter table leads add column if not exists uses_reels boolean;
+alter table leads add column if not exists site_ok boolean;      -- site abre e funciona
+alter table leads add column if not exists site_mobile boolean;  -- site bom no celular
+alter table leads add column if not exists ads_since date;       -- anúncio ativo mais antigo (Biblioteca da Meta)
+alter table leads add column if not exists size text check (size in ('pequeno', 'medio', 'grande'));
+alter table leads add column if not exists units int;            -- unidades/lojas
+alter table leads add column if not exists potential text check (potential in ('baixo', 'medio', 'alto'));
+alter table leads add column if not exists analysis text;        -- análise completa (texto)
+alter table leads add column if not exists analyzed_at date;
+
+-- Sementes: @ e buscas que a coleta deve pesquisar
+create table if not exists seeds (
+  id uuid primary key default gen_random_uuid(),
+  handle text not null,            -- @perfil (sem @) ou termo de busca no Maps
+  kind text not null default 'instagram' check (kind in ('instagram', 'maps')),
+  status text not null default 'pendente' check (status in ('pendente', 'pesquisada', 'pausada')),
+  notes text,
+  last_run date,
+  leads_found int not null default 0,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists seeds_handle_uq on seeds (kind, lower(handle));
+
 -- Etapas do post: o cliente aprova ou pede ajuste pelo Portal do Cliente (hm-portal)
 alter table posts drop constraint if exists posts_status_check;
 alter table posts add constraint posts_status_check
@@ -225,7 +257,7 @@ create policy "equipe lê equipe" on team_members for select to authenticated us
 do $$
 declare t text;
 begin
-  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals', 'posts', 'bills', 'leads'] loop
+  foreach t in array array['clients', 'projects', 'time_entries', 'transactions', 'events', 'goals', 'posts', 'bills', 'leads', 'seeds'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "equipe HM" on %I', t);
     execute format('create policy "equipe HM" on %I for all to authenticated using (is_team()) with check (is_team())', t);

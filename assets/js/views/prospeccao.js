@@ -6,9 +6,17 @@ import { esc, icon, toast, todayISO, addDays, daysFrom, fmtDate, formModal, conf
 import { label } from "./common.js";
 
 export const LEAD_STATUS = [
-  ["novo", "Novos"], ["abordado", "Abordados"], ["respondeu", "Responderam"], ["reuniao", "Reunião"],
-  ["fechou", "Fecharam"], ["sem_interesse", "Sem interesse"], ["nao_contatar", "Não contatar"]
+  ["avaliar", "Para avaliar"], ["novo", "Na fila"], ["abordado", "Abordados"], ["respondeu", "Responderam"], ["reuniao", "Reunião"],
+  ["fechou", "Fecharam"], ["sem_interesse", "Sem interesse"], ["nao_contatar", "Não contatar"], ["descartado", "Não serve"]
 ];
+export const REJECT_REASONS = [
+  ["pequena", "Muito pequena / sem dinheiro"], ["nao_empresa", "Não é empresa (perfil pessoal)"], ["tem_agencia", "Já tem agência ou equipe"],
+  ["fora_regiao", "Fora da região"], ["concorrente", "Concorrente / parceiro"], ["nicho", "Nicho que não queremos"],
+  ["conhecido", "Já conhecemos / já falamos"], ["outro", "Outro"]
+];
+const SIZES = [["", "—"], ["pequeno", "Pequena"], ["medio", "Média"], ["grande", "Grande"]];
+const POTENTIALS = [["", "—"], ["baixo", "Baixo"], ["medio", "Médio"], ["alto", "Alto"]];
+const SEED_STATUS = [["pendente", "Pendente"], ["pesquisada", "Pesquisada"], ["pausada", "Pausada"]];
 export const NICHES = [
   ["industria", "Indústria/fábrica"], ["servicos", "Serviços locais"], ["liberais", "Profissional liberal"],
   ["alimentacao", "Alimentação"], ["varejo", "Varejo/loja"], ["outro", "Outro"]
@@ -17,7 +25,7 @@ const OFFERS = PROSPECT.offers;
 const SOURCES = [["instagram", "Instagram"], ["maps", "Google Maps"], ["indicacao", "Indicação"], ["manual", "Manual"]];
 const BIO = [["", "—"], ["site", "Site próprio"], ["linktree", "Linktree/agregador"], ["whatsapp", "Link do WhatsApp"], ["nenhum", "Nenhum link"], ["outro", "Outro"]];
 
-let filter = "novo", offerFilter = "todas", query = "", shown = 40;
+let filter = "avaliar", offerFilter = "todas", query = "", shown = 40, mode = "leads";
 
 // ---------- utilidades ----------
 const digits = s => String(s || "").replace(/\D/g, "");
@@ -51,12 +59,18 @@ export function offerScores(l) {
     if (l.posts_30d != null && l.posts_30d < 6) s.marketing += 20;
     if (fol && fol < 2000) s.marketing += 10;
   }
+  if (l.engagement != null && l.engagement < 1) s.marketing += 15;
+  if (l.uses_reels === false) s.marketing += 10;
+  // Site existe, mas está fora do ar ou ruim no celular
+  if (l.has_site && (l.site_ok === false || l.site_mobile === false)) s.site += 35;
   // Tráfego: bem avaliado, perfil ativo, sem anúncio
   if (l.runs_ads === false) s.trafego += 30;
   if (rev >= 30 && (l.rating || 0) >= 4.3) s.trafego += 25;
   if (idle != null && idle <= 10) s.trafego += 10;
-  // Dá para falar com a pessoa?
-  const bonus = (l.phone ? 15 : 0) + (l.instagram ? 5 : 0) + (fol > 50000 ? -20 : 0);
+  if (l.engagement != null && l.engagement >= 3) s.trafego += 10;
+  // Dá para falar com a pessoa? Tem porte para pagar?
+  const bonus = (l.phone ? 15 : 0) + (l.instagram ? 5 : 0) + (fol > 50000 ? -20 : 0)
+    + ({ alto: 15, medio: 5, baixo: -20 }[l.potential] || 0) + ({ grande: 5, pequeno: -5 }[l.size] || 0);
   for (const k in s) s[k] = Math.max(0, Math.min(100, s[k] + bonus));
   return s;
 }
@@ -86,11 +100,19 @@ function signals(l) {
   if (l.followers != null) out.push(`${Number(l.followers).toLocaleString("pt-BR")} seguidores`);
   if (idle != null) out.push(idle <= 0 ? "postou hoje" : `último post há ${idle} dia(s)`);
   if (l.posts_30d != null) out.push(`${l.posts_30d} posts/30 dias`);
+  if (l.engagement != null) out.push(`engajamento ${String(l.engagement).replace(".", ",")}%`);
+  if (l.avg_likes != null) out.push(`~${l.avg_likes} curtidas/post`);
+  if (l.uses_reels === false) out.push("não usa Reels");
   if (l.has_site === false) out.push("sem site");
+  if (l.has_site && l.site_ok === false) out.push("site fora do ar");
+  else if (l.has_site && l.site_mobile === false) out.push("site ruim no celular");
+  if (l.size) out.push("porte " + label(SIZES, l.size).toLowerCase());
+  if (l.units > 1) out.push(`${l.units} unidades`);
+  if (l.potential) out.push("potencial " + label(POTENTIALS, l.potential).toLowerCase());
   if (l.bio_link && l.bio_link !== "site") out.push("bio: " + label(BIO, l.bio_link).toLowerCase());
   if (l.manual_ops) out.push("atende/agenda na mão");
   if (l.runs_ads === false) out.push("sem anúncios");
-  if (l.runs_ads) out.push("já anuncia");
+  if (l.runs_ads) out.push(l.ads_since ? `anuncia desde ${fmtDate(l.ads_since)}` : "já anuncia");
   if (l.rating != null) out.push(`★ ${String(l.rating).replace(".", ",")}${l.reviews ? ` (${l.reviews})` : ""}`);
   return out;
 }
@@ -115,6 +137,23 @@ export default function prospeccao(el, ctx) {
   const answered = db.leads.filter(l => ["respondeu", "reuniao", "fechou", "sem_interesse"].includes(l.status) && l.attempts > 0).length;
   const due = db.leads.filter(l => l.status === "abordado" && l.followup_on && l.followup_on <= today && (l.attempts || 0) < PROSPECT.maxAttempts).length;
   const sent = sentToday(db);
+  const pendingSeeds = (db.seeds || []).filter(s => s.status === "pendente").length;
+
+  const head = `
+    <header class="page-head">
+      <div><span class="eyebrow">Novos clientes</span><h1>Prospecção</h1></div>
+      <div class="row">
+        ${mode === "leads" ? `<button class="btn ghost" data-import>${icon("download")}Importar lista</button>
+        <button class="btn ghost" data-new>${icon("plus")}Novo lead</button>` : `<button class="btn primary" data-seed-new>${icon("plus")}Adicionar @</button>`}
+      </div>
+    </header>
+    <div class="seg" role="group" aria-label="Seção">
+      <button data-mode="leads" aria-pressed="${mode === "leads"}">Leads</button>
+      <button data-mode="sementes" aria-pressed="${mode === "sementes"}">Sementes (@ para pesquisar)${pendingSeeds ? ` · ${pendingSeeds}` : ""}</button>
+    </div>`;
+
+  if (mode === "sementes") { el.innerHTML = head + seedsHTML(db); bindHead(el, ctx); bindSeeds(el, ctx); return }
+
   const q = query.toLowerCase();
   const all = db.leads
     .filter(l => filter === "todos" || l.status === filter)
@@ -123,28 +162,20 @@ export default function prospeccao(el, ctx) {
     .sort((a, b) => (b.score || 0) - (a.score || 0) || a.company.localeCompare(b.company));
   const list = all.slice(0, shown);
 
-  el.innerHTML = `
-    <header class="page-head">
-      <div><span class="eyebrow">Novos clientes</span><h1>Prospecção</h1></div>
-      <div class="row">
-        <button class="btn ghost" data-import>${icon("download")}Importar lista</button>
-        <button class="btn ghost" data-new>${icon("plus")}Novo lead</button>
-      </div>
-    </header>
-
+  el.innerHTML = head + `
     <div class="kpis prosp-kpis">
       <div class="kpi hero"><span>Envios de hoje</span><b>${sent} de ${PROSPECT.dailyLimit}</b>
         <small>${due ? `${due} follow-up(s) para hoje` : "nenhum follow-up para hoje"}</small></div>
-      <div class="kpi"><span>Taxa de resposta</span><b>${contacted ? Math.round(answered / contacted * 100) + "%" : "—"}</b><small>${answered} de ${contacted} abordados</small></div>
-      <div class="kpi"><span>Reuniões / fechados</span><b>${count("reuniao")} / ${count("fechou")}</b><small>${count("novo")} na fila</small></div>
+      <div class="kpi"><span>Para avaliar</span><b>${count("avaliar")}</b><small>${count("novo")} aprovados na fila · ${count("descartado")} não servem</small></div>
+      <div class="kpi"><span>Respostas · reuniões</span><b>${contacted ? Math.round(answered / contacted * 100) + "%" : "—"} · ${count("reuniao")}</b><small>${answered} de ${contacted} abordados responderam · ${count("fechou")} fecharam</small></div>
     </div>
 
     <div class="send-cta">
-      <div><b>Sessão de envios</b><small>O sistema mostra um lead por vez com a mensagem pronta. Você envia e confirma.</small></div>
+      <div><b>Sessão de envios</b><small>Só entram os leads que você marcou como <b>Serve</b>. Um por vez, com a mensagem pronta.</small></div>
       <button class="btn primary" data-session ${sent >= PROSPECT.dailyLimit ? "disabled" : ""}>${icon("play")}${sent >= PROSPECT.dailyLimit ? "Limite de hoje atingido" : "Começar envios"}</button>
     </div>
 
-    <div class="funnel" role="group" aria-label="Filtrar por situação">
+    <div class="funnel funnel-wide" role="group" aria-label="Filtrar por situação">
       ${LEAD_STATUS.map(([k, l]) => `<button data-f="${k}" aria-pressed="${filter === k}" class="ls-${k}"><b>${count(k)}</b><span>${l}</span></button>`).join("")}
     </div>
 
@@ -158,11 +189,10 @@ export default function prospeccao(el, ctx) {
 
     ${list.length ? `<div class="cards">${list.map(l => card(l)).join("")}</div>
       ${all.length > shown ? `<div class="row" style="justify-content:center"><button class="btn ghost" data-more>Mostrar mais (${all.length - shown})</button></div>` : ""}`
-    : `<div class="empty-box"><p>${db.leads.length ? "Nenhum lead nesse filtro." : "Nenhum lead ainda. Importe a lista da coleta (skill hm-prospeccao) ou cadastre à mão."}</p>
+    : `<div class="empty-box"><p>${db.leads.length ? (filter === "avaliar" ? "Nada para avaliar agora. Adicione @ em Sementes e peça uma nova coleta." : "Nenhum lead nesse filtro.") : "Nenhum lead ainda. Importe a lista da coleta (skill hm-prospeccao) ou cadastre à mão."}</p>
         <button class="btn primary" data-import>${icon("download")}Importar lista</button></div>`}`;
 
-  el.querySelectorAll("[data-import]").forEach(b => b.onclick = () => importLeads(ctx));
-  el.querySelectorAll("[data-new]").forEach(b => b.onclick = () => leadForm(ctx));
+  bindHead(el, ctx);
   el.querySelector("[data-session]").onclick = () => session(ctx);
   el.querySelector("[data-more]")?.addEventListener("click", () => { shown += 40; prospeccao(el, ctx) });
   el.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { filter = filter === b.dataset.f ? "todos" : b.dataset.f; shown = 40; prospeccao(el, ctx) });
@@ -171,23 +201,47 @@ export default function prospeccao(el, ctx) {
   search.oninput = () => { query = search.value; prospeccao(el, ctx); const s = el.querySelector("#lead-search"); s.focus(); s.setSelectionRange(s.value.length, s.value.length) };
   el.querySelectorAll(".item[data-id]").forEach(c => {
     const lead = db.leads.find(l => l.id === c.dataset.id);
-    const open = e => { if (e.target.closest("a,button,select")) return; leadForm(ctx, lead) };
-    c.onclick = open; c.onkeydown = e => { if (e.key === "Enter") open(e) };
+    const open = e => { if (e.target.closest("a,button,select,details")) return; leadForm(ctx, lead) };
+    c.onclick = open; c.onkeydown = e => { if (e.key === "Enter" && e.target === c) open(e) };
   });
   el.querySelectorAll("[data-status]").forEach(s => s.onchange = () => {
     const patch = { status: s.value };
     if (s.value !== "abordado") patch.followup_on = null;
     ctx.run(() => ctx.store.update("leads", s.dataset.status, patch), "Situação atualizada", ["leads"]);
   });
+  el.querySelectorAll("[data-ok]").forEach(b => b.onclick = () =>
+    ctx.run(() => ctx.store.update("leads", b.dataset.ok, { status: "novo", reject_reason: null }), "Aprovado: entrou na fila de envios", ["leads"]));
+  el.querySelectorAll("[data-no]").forEach(b => b.onclick = () => reject(ctx, db.leads.find(l => l.id === b.dataset.no)));
   el.querySelectorAll("[data-client]").forEach(b => b.onclick = () => toClient(ctx, db.leads.find(l => l.id === b.dataset.client)));
+}
+
+function bindHead(el, ctx) {
+  el.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { mode = b.dataset.mode; prospeccao(el, ctx) });
+  el.querySelectorAll("[data-import]").forEach(b => b.onclick = () => importLeads(ctx));
+  el.querySelectorAll("[data-new]").forEach(b => b.onclick = () => leadForm(ctx));
+  el.querySelectorAll("[data-seed-new]").forEach(b => b.onclick = () => seedForm(ctx));
+}
+
+async function reject(ctx, l) {
+  const r = await formModal({
+    title: `Não serve: ${l.company}`, submit: "Descartar",
+    fields: [
+      { name: "reason", label: "Motivo", type: "select", options: REJECT_REASONS, value: "pequena", full: true },
+      { name: "detail", label: "Detalhe (opcional)", value: "", full: true, placeholder: "Ex.: só revende, não fabrica", hint: "Os motivos ensinam a próxima coleta a filtrar melhor" }
+    ]
+  });
+  if (!r) return;
+  const why = label(REJECT_REASONS, r.reason) + (r.detail ? ` — ${r.detail}` : "");
+  return ctx.run(() => ctx.store.update("leads", l.id, { status: "descartado", reject_reason: why, followup_on: null }), "Descartado", ["leads"]);
 }
 
 function card(l) {
   const offer = mainOffer(l);
   const sig = signals(l);
   const late = l.status === "abordado" && l.followup_on && l.followup_on <= todayISO();
+  const triage = l.status === "avaliar";
   return `
-  <article class="item" data-id="${l.id}" tabindex="0">
+  <article class="item ${triage ? "is-triage" : ""}" data-id="${l.id}" tabindex="0">
     <div class="item-top">
       <div class="min0"><h3>${esc(l.company)}</h3><small>${esc([label(NICHES, l.niche), l.city, l.instagram ? "@" + l.instagram : ""].filter(Boolean).join(" · "))}</small></div>
       <span class="score ${l.score >= 70 ? "hi" : l.score >= 45 ? "mid" : ""}" title="Nota do lead">${l.score ?? "—"}</span>
@@ -195,18 +249,78 @@ function card(l) {
     <div class="offer-row">${[offer, ...(l.offers || []).filter(o => o !== offer)].map((o, i) => `<span class="pill offer ${i ? "" : "main"}">${esc(label(OFFERS, o))}</span>`).join("")}</div>
     ${sig.length ? `<p class="sig">${sig.map(esc).join(" · ")}</p>` : ""}
     ${l.diagnosis ? `<p class="note">${esc(l.diagnosis)}</p>` : ""}
+    ${l.analysis ? `<details class="analysis"><summary>Análise completa</summary><div>${esc(l.analysis).replace(/\n/g, "<br>")}</div></details>` : ""}
+    ${l.status === "descartado" && l.reject_reason ? `<p class="reject">${icon("x")}${esc(l.reject_reason)}</p>` : ""}
     <div class="item-meta">
       <span>${esc(label(SOURCES, l.source))}${l.seed ? ` · via ${esc(l.seed)}` : ""}</span>
       ${l.contacted_at ? `<span>Abordado ${esc(fmtDate(l.contacted_at.slice(0, 10)))}${l.attempts > 1 ? ` (${l.attempts}x)` : ""}</span>` : ""}
       ${late ? `<span class="bad">Follow-up hoje</span>` : l.followup_on && l.status === "abordado" ? `<span>Follow-up ${esc(fmtDate(l.followup_on))}</span>` : ""}
     </div>
     <div class="item-actions">
-      <select class="status-sel ls-${l.status}" data-status="${l.id}" aria-label="Situação">${LEAD_STATUS.map(([k, t]) => `<option value="${k}" ${k === l.status ? "selected" : ""}>${t}</option>`).join("")}</select>
-      ${l.phone ? `<a class="btn sm ghost" href="https://wa.me/${waNumber(l.phone)}" target="_blank" rel="noopener">${icon("whatsapp")}WhatsApp</a>` : ""}
+      ${triage ? `<button class="btn sm primary" data-ok="${l.id}">${icon("check")}Serve</button>
+        <button class="btn sm ghost danger" data-no="${l.id}">${icon("x")}Não serve</button>`
+      : `<select class="status-sel ls-${l.status}" data-status="${l.id}" aria-label="Situação">${LEAD_STATUS.map(([k, t]) => `<option value="${k}" ${k === l.status ? "selected" : ""}>${t}</option>`).join("")}</select>`}
       ${l.instagram ? `<a class="btn sm ghost" href="https://instagram.com/${esc(l.instagram)}" target="_blank" rel="noopener">Perfil</a>` : ""}
+      ${l.phone && !triage ? `<a class="btn sm ghost" href="https://wa.me/${waNumber(l.phone)}" target="_blank" rel="noopener">${icon("whatsapp")}WhatsApp</a>` : ""}
       ${l.client_id ? `<span class="pill st-ativo">Já é cliente no CRM</span>` : ["respondeu", "reuniao", "fechou"].includes(l.status) ? `<button class="btn sm" data-client="${l.id}">${icon("users")}Levar para Clientes</button>` : ""}
     </div>
   </article>`;
+}
+
+// ---------- sementes ----------
+function seedsHTML(db) {
+  const seeds = [...(db.seeds || [])].sort((a, b) => SEED_STATUS.findIndex(([k]) => k === a.status) - SEED_STATUS.findIndex(([k]) => k === b.status) || a.handle.localeCompare(b.handle));
+  const stat = h => {
+    const ls = db.leads.filter(l => (l.seed || "").replace(/^@/, "").toLowerCase() === h.toLowerCase());
+    return { total: ls.length, ok: ls.filter(l => !["avaliar", "descartado"].includes(l.status)).length, no: ls.filter(l => l.status === "descartado").length };
+  };
+  return `
+    <p class="muted-p">Cole aqui os @ de empresários, comunidades, fornecedores e parceiros (ou buscas do Google Maps, ex.: "clínica estética Setor Marista"). Na próxima coleta eu pesquiso os <b>pendentes</b>, e cada um passa a mostrar quantos leads rendeu e quantos você aprovou.</p>
+    ${seeds.length ? `<div class="seed-list">${seeds.map(s => { const st = stat(s.handle); return `
+      <div class="seed-row" data-seed="${s.id}">
+        <div class="min0">
+          <b>${s.kind === "instagram" ? "@" : `${icon("pin")} `}${esc(s.handle)}</b>
+          <small>${esc([s.notes, s.last_run ? "pesquisada em " + fmtDate(s.last_run) : "", st.total ? `${st.total} lead(s) · ${st.ok} serviram · ${st.no} não` : ""].filter(Boolean).join(" · "))}</small>
+        </div>
+        <div class="row">
+          <select class="status-sel seed-${s.status}" data-seed-status="${s.id}" aria-label="Situação da semente">${SEED_STATUS.map(([k, t]) => `<option value="${k}" ${k === s.status ? "selected" : ""}>${t}</option>`).join("")}</select>
+          ${s.kind === "instagram" ? `<a class="btn sm ghost" href="https://instagram.com/${esc(s.handle)}" target="_blank" rel="noopener">Abrir</a>` : ""}
+          <button class="icon-btn" data-seed-del="${s.id}" aria-label="Excluir">${icon("trash")}</button>
+        </div>
+      </div>`; }).join("")}</div>`
+    : `<div class="empty-box"><p>Nenhuma semente ainda.</p></div>`}`;
+}
+
+function bindSeeds(el, ctx) {
+  el.querySelectorAll("[data-seed-status]").forEach(s => s.onchange = () =>
+    ctx.run(() => ctx.store.update("seeds", s.dataset.seedStatus, { status: s.value }), "Semente atualizada", ["seeds"]));
+  el.querySelectorAll("[data-seed-del]").forEach(b => b.onclick = async () => {
+    const s = ctx.db.seeds.find(x => x.id === b.dataset.seedDel);
+    if (await confirmModal(`Excluir a semente "${s.handle}"? Os leads que vieram dela continuam.`)) ctx.run(() => ctx.store.remove("seeds", s.id), "Semente excluída", ["seeds"]);
+  });
+}
+
+async function seedForm(ctx) {
+  const r = await formModal({
+    title: "Adicionar sementes",
+    fields: [
+      { name: "list", label: "@ ou buscas (um por linha)", type: "textarea", required: true, full: true, placeholder: "@acomunidadeatitude\n@aceg.empresarial\nbarbearia Setor Bueno" },
+      { name: "notes", label: "Observação (vale para todos)", value: "", full: true, placeholder: "Ex.: indicação do Thiago" }
+    ]
+  });
+  if (!r) return;
+  const have = new Set((ctx.db.seeds || []).map(s => s.kind + ":" + s.handle.toLowerCase()));
+  const rows = [];
+  for (const line of r.list.split(/\n|,/).map(s => s.trim()).filter(Boolean)) {
+    const ig = /^@|instagram\.com\//i.test(line) || /^[a-z0-9._]+$/i.test(line);
+    const handle = ig ? cleanIg(line) : line;
+    const kind = ig ? "instagram" : "maps";
+    if (!handle || have.has(kind + ":" + handle.toLowerCase())) continue;
+    have.add(kind + ":" + handle.toLowerCase());
+    rows.push({ handle, kind, status: "pendente", notes: r.notes, leads_found: 0 });
+  }
+  if (!rows.length) return toast("Essas sementes já estavam na lista.");
+  return ctx.run(() => ctx.store.insert("seeds", rows), `${rows.length} semente(s) adicionada(s)`, ["seeds"]);
 }
 
 // ---------- cadastro / edição ----------
@@ -233,10 +347,21 @@ async function leadForm(ctx, l = {}) {
       { name: "has_site", label: "Tem site próprio", type: "checkbox", value: l.has_site ?? !!l.site },
       { name: "runs_ads", label: "Já faz anúncios", type: "checkbox", value: l.runs_ads || false },
       { name: "manual_ops", label: "Agenda/pedidos na mão (WhatsApp/direct)", type: "checkbox", value: l.manual_ops || false, full: true },
+      { name: "avg_likes", label: "Média de curtidas", type: "number", step: "1", value: l.avg_likes },
+      { name: "avg_comments", label: "Média de comentários", type: "number", step: "1", value: l.avg_comments },
+      { name: "engagement", label: "Engajamento (%)", type: "number", step: "0.01", value: l.engagement },
+      { name: "ads_since", label: "Anuncia desde", type: "date", value: l.ads_since },
+      { name: "size", label: "Porte", type: "select", options: SIZES, value: l.size || "" },
+      { name: "potential", label: "Potencial", type: "select", options: POTENTIALS, value: l.potential || "" },
+      { name: "units", label: "Unidades", type: "number", step: "1", value: l.units },
+      { name: "uses_reels", label: "Usa Reels", type: "checkbox", value: l.uses_reels ?? true },
+      { name: "site_ok", label: "Site funciona", type: "checkbox", value: l.site_ok ?? !!l.has_site },
+      { name: "site_mobile", label: "Site bom no celular", type: "checkbox", value: l.site_mobile ?? !!l.has_site },
       { name: "offer", label: "Oferta principal", type: "select", options: [["", "Automática (pela nota)"], ...OFFERS], value: l.offer || "" },
-      { name: "status", label: "Situação", type: "select", options: LEAD_STATUS, value: l.status || "novo" },
+      { name: "status", label: "Situação", type: "select", options: LEAD_STATUS, value: l.status || "avaliar" },
       { name: "hook", label: "Gancho da mensagem", value: l.hook, full: true, placeholder: "Ex.: o último post foi há 40 dias", hint: "Entra no lugar de {gancho} na mensagem" },
-      { name: "diagnosis", label: "Diagnóstico", type: "textarea", value: l.diagnosis, full: true },
+      { name: "diagnosis", label: "Diagnóstico (resumo)", type: "textarea", value: l.diagnosis, full: true },
+      { name: "analysis", label: "Análise completa", type: "textarea", value: l.analysis, full: true },
       { name: "notes", label: "Anotações", type: "textarea", value: l.notes, full: true }
     ]
   });
@@ -246,6 +371,7 @@ async function leadForm(ctx, l = {}) {
     return ctx.run(() => ctx.store.remove("leads", l.id), "Lead excluído", ["leads"]);
   }
   const row = normalize(r);
+  row.analyzed_at = l.analyzed_at || (row.analysis ? todayISO() : null);
   if (!row.offer) row.offer = null;
   if (row.status !== "abordado") row.followup_on = null;
   const dup = findDup(ctx.db.leads, row, l.id);
@@ -281,8 +407,23 @@ function normalize(raw) {
     hook: pick("hook", "gancho"),
     diagnosis: pick("diagnosis", "diagnostico"),
     message: pick("message", "mensagem"),
-    notes: pick("notes", "anotacoes")
+    notes: pick("notes", "anotacoes"),
+    avg_likes: toNum(pick("avg_likes", "media_curtidas")),
+    avg_comments: toNum(pick("avg_comments", "media_comentarios")),
+    engagement: toNum(pick("engagement", "engajamento")),
+    uses_reels: toBool(pick("uses_reels")),
+    site_ok: toBool(pick("site_ok")),
+    site_mobile: toBool(pick("site_mobile")),
+    ads_since: pick("ads_since") ? String(pick("ads_since")).slice(0, 10) : null,
+    size: SIZES.some(([k]) => k && k === pick("size", "porte")) ? pick("size", "porte") : null,
+    units: toNum(pick("units", "unidades")),
+    potential: POTENTIALS.some(([k]) => k && k === pick("potential", "potencial")) ? pick("potential", "potencial") : null,
+    analysis: pick("analysis", "analise"),
+    analyzed_at: pick("analyzed_at") ? String(pick("analyzed_at")).slice(0, 10) : null
   };
+  if (l.ads_since && l.runs_ads == null) l.runs_ads = true;
+  ["avg_likes", "avg_comments", "units"].forEach(k => { if (l[k] != null) l[k] = Math.round(l[k]) });
+  if (l.engagement != null) l.engagement = Math.max(0, Math.min(999, Math.round(l.engagement * 100) / 100));
   if (raw.status && LEAD_STATUS.some(([k]) => k === raw.status)) l.status = raw.status;
   if (l.has_site == null && l.site) l.has_site = true;
   if (l.followers != null) l.followers = Math.round(l.followers);
@@ -344,10 +485,13 @@ function importLeads(ctx) {
     if (file && file.size > 2 * 1024 * 1024) return fail("Arquivo grande demais (máximo 2 MB).");
     const text = (file ? await file.text() : root.querySelector("textarea").value).replace(/^﻿/, "").trim();
     if (!text) return fail("Escolha um arquivo ou cole a lista.");
-    let raw;
+    let raw, seedsDone = [];
     try {
-      if (/^[[{]/.test(text)) { const j = JSON.parse(text); raw = Array.isArray(j) ? j : j.leads || [] }
-      else raw = parseCSV(text);
+      if (/^[[{]/.test(text)) {
+        const j = JSON.parse(text);
+        raw = Array.isArray(j) ? j : j.leads || [];
+        seedsDone = Array.isArray(j.seeds) ? j.seeds : [];
+      } else raw = parseCSV(text);
     } catch (e) { return fail("Não consegui ler a lista: " + e.message) }
     const fresh = [], seen = [...ctx.db.leads];
     let dups = 0, blocked = 0, bad = 0;
@@ -355,16 +499,29 @@ function importLeads(ctx) {
       const l = normalize(r || {});
       if (!l.company) { bad++; continue }
       const d = findDup(seen, l);
-      if (d) { d.status === "nao_contatar" ? blocked++ : dups++; continue }
-      l.status = "novo"; l.attempts = 0; // tudo que chega entra como "novo"
+      if (d) { ["nao_contatar", "descartado"].includes(d.status) ? blocked++ : dups++; continue }
+      l.status = "avaliar"; l.attempts = 0; // tudo que chega passa pela sua triagem
+      if (!l.analyzed_at && (l.analysis || l.diagnosis)) l.analyzed_at = todayISO();
       fresh.push(l); seen.push(l);
     }
-    if (!fresh.length) return fail(`Nada novo para importar (${dups} já existiam, ${blocked} em "não contatar", ${bad} sem nome).`);
+    if (!fresh.length && !seedsDone.length) return fail(`Nada novo para importar (${dups} já existiam, ${blocked} descartados ou em "não contatar", ${bad} sem nome).`);
     close();
-    filter = "novo";
+    filter = "avaliar"; mode = "leads";
     await ctx.run(async () => {
       for (let i = 0; i < fresh.length; i += 50) await ctx.store.insert("leads", fresh.slice(i, i + 50));
-    }, `${fresh.length} lead(s) importado(s)${dups ? ` · ${dups} repetido(s)` : ""}${blocked ? ` · ${blocked} em "não contatar"` : ""}`, ["leads"]);
+      // Sementes pesquisadas nesta coleta: marca como pesquisada e soma os leads
+      for (const s of seedsDone) {
+        const handle = s.kind === "maps" ? String(s.handle || "").trim() : cleanIg(s.handle);
+        if (!handle) continue;
+        const kind = s.kind === "maps" ? "maps" : "instagram";
+        const found = Number(s.leads_found) || fresh.filter(l => (l.seed || "").replace(/^@/, "").toLowerCase() === handle.toLowerCase()).length;
+        const cur = (ctx.db.seeds || []).find(x => x.kind === kind && x.handle.toLowerCase() === handle.toLowerCase());
+        const patch = { status: "pesquisada", last_run: todayISO(), leads_found: (cur?.leads_found || 0) + found };
+        if (s.notes) patch.notes = s.notes;
+        if (cur) await ctx.store.update("seeds", cur.id, patch);
+        else await ctx.store.insert("seeds", { handle, kind, ...patch });
+      }
+    }, `${fresh.length} lead(s) para avaliar${dups ? ` · ${dups} repetido(s)` : ""}${blocked ? ` · ${blocked} já descartado(s)` : ""}${seedsDone.length ? ` · ${seedsDone.length} semente(s) pesquisada(s)` : ""}`, ["leads", "seeds"]);
   };
 }
 
