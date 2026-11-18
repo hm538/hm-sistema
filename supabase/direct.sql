@@ -28,6 +28,13 @@ create table if not exists ig_rules (
   created_at timestamptz not null default now()
 );
 create index if not exists ig_rules_account on ig_rules (account_id);
+-- v2: "qualquer comentário" (any_comment) pode ter só resposta pública, sem mensagem no Direct
+alter table ig_rules drop constraint if exists ig_rules_kind_check;
+alter table ig_rules add constraint ig_rules_kind_check check (kind in ('comment', 'any_comment', 'dm', 'story_mention', 'welcome'));
+alter table ig_rules drop constraint if exists ig_rules_dm_check;
+alter table ig_rules add constraint ig_rules_dm_check check (length(dm) <= 1000 and (length(dm) >= 1 or kind = 'any_comment'));
+alter table ig_rules drop constraint if exists ig_rules_any_needs_reply;
+alter table ig_rules add constraint ig_rules_any_needs_reply check (kind <> 'any_comment' or length(dm) >= 1 or cardinality(public_replies) >= 1);
 
 create table if not exists ig_events (
   id uuid primary key default gen_random_uuid(),

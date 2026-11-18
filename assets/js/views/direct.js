@@ -5,7 +5,7 @@ import { esc, icon, toast, fmtDate, formModal, confirmModal } from "../ui.js";
 import { label } from "./common.js";
 
 export const RULE_KINDS = [
-  ["comment", "Comentário em post/reel"], ["dm", "Mensagem no Direct"],
+  ["comment", "Comentário com palavra-chave"], ["any_comment", "Qualquer comentário"], ["dm", "Mensagem no Direct"],
   ["story_mention", "Marcou no story"], ["welcome", "Boas-vindas (1º Direct)"]
 ];
 const NEEDS_WORDS = ["comment", "dm"];
@@ -67,7 +67,7 @@ export default function direct(el, ctx) {
 
     <div class="kpis">
       <div class="kpi hero"><span>Mensagens enviadas</span><b>${num(sum(sent))}</b><small>últimos 30 dias</small></div>
-      <div class="kpi"><span>Por comentário</span><b>${num(sum(sent.filter(s => s.kind === "comment")))}</b><small>${num(posts.length)} post(s) diferentes</small></div>
+      <div class="kpi"><span>Por comentário</span><b>${num(sum(sent.filter(s => s.kind === "comment" || s.kind === "any_comment")))}</b><small>${num(posts.length)} post(s) diferentes</small></div>
       <div class="kpi"><span>Falhas</span><b>${num(sum(failed))}</b>${failed.length ? `<small class="bad">veja abaixo</small>` : `<small>nenhuma</small>`}</div>
     </div>
     ${statsErr ? `<p class="dm-warn">${icon("alert")}Não deu para carregar os números (${esc(statsErr)}). Confira se o arquivo hm-direct.sql foi rodado.</p>` : ""}
@@ -147,13 +147,13 @@ async function ruleForm(ctx, r = {}) {
     fields: [
       { name: "name", label: "Nome da regra", value: r.name, placeholder: "Ex.: Comentou QUERO", required: true, full: true },
       { name: "kind", label: "Quando dispara", type: "select", value: r.kind || "comment", options: RULE_KINDS, full: true,
-        hint: "Boas-vindas vai uma vez só, na 1ª mensagem da pessoa. Story e boas-vindas não usam palavra-chave." },
+        hint: "Qualquer comentário: vale quando nenhuma palavra-chave pegou, responde 1 vez por pessoa em cada post e pula reclamações e comentários só de emoji. Boas-vindas: 1 vez só, na 1ª mensagem da pessoa." },
       { name: "keywords", label: "Palavras-chave (separe por vírgula)", value: (r.keywords || []).join(", "), placeholder: "quero, eu quero",
         full: true, hint: "Não diferencia maiúsculas nem acento. Vale a palavra inteira: \"quero\" não pega \"queroo\". Só para comentário e Direct." },
-      { name: "dm", label: "Mensagem enviada no Direct", type: "textarea", value: r.dm, required: true, full: true,
+      { name: "dm", label: "Mensagem enviada no Direct", type: "textarea", value: r.dm, full: true, hint: "Em \"Qualquer comentário\" pode ficar vazia: aí só responde no comentário.",
         placeholder: "Oi! Que bom que você curtiu…" },
       { name: "public_replies", label: "Respostas públicas no comentário (uma por linha, opcional)", type: "textarea",
-        value: (r.public_replies || []).join("\n"), full: true, showIf: "kind=comment",
+        value: (r.public_replies || []).join("\n"), full: true, showIf: "kind!=dm",
         hint: "O sistema sorteia uma, para não parecer robô repetindo." },
       { name: "priority", label: "Ordem (menor vem primeiro)", type: "number", value: r.priority ?? 100, step: 1 },
       { name: "active", label: "Regra ligada", type: "checkbox", value: r.id ? r.active : true }
@@ -167,12 +167,15 @@ async function ruleForm(ctx, r = {}) {
   const row = {
     account_id: r.account_id, name: v.name, kind: v.kind,
     keywords: NEEDS_WORDS.includes(v.kind) ? words(v.keywords).map(w => w.toLowerCase()) : [],
-    dm: v.dm, public_replies: v.kind === "comment" ? lines(v.public_replies) : [],
+    dm: v.dm, public_replies: ["comment", "any_comment"].includes(v.kind) ? lines(v.public_replies) : [],
     priority: Math.round(v.priority ?? 100), active: v.active
   };
   if (NEEDS_WORDS.includes(row.kind) && !row.keywords.length) return toast("Coloque pelo menos uma palavra-chave.", "erro");
+  if (row.kind === "any_comment" && !row.dm && !row.public_replies.length) return toast("Coloque pelo menos uma resposta pública (ou a mensagem do Direct).", "erro");
+  if (row.kind !== "any_comment" && !row.dm) return toast("Escreva a mensagem do Direct.", "erro");
+  row.dm = row.dm || "";
   if (row.dm.length > 1000) return toast("A mensagem passou de 1000 letras.", "erro");
-  if (["welcome", "story_mention"].includes(row.kind) && row.active &&
+  if (["welcome", "story_mention", "any_comment"].includes(row.kind) && row.active &&
       ctx.db.ig_rules.some(x => x.account_id === r.account_id && x.kind === row.kind && x.active && x.id !== r.id))
     return toast(`Já existe uma regra de "${label(RULE_KINDS, row.kind)}" ligada nesta conta. Desligue a outra antes.`, "erro");
   await ctx.run(() => r.id ? ctx.store.update("ig_rules", r.id, row) : ctx.store.insert("ig_rules", row), "Regra salva", ["ig_rules"]);
